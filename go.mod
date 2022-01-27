@@ -3,7 +3,7 @@ module github.com/statechannels/go-nitro
 go 1.17
 
 require (
-	github.com/ethereum/go-ethereum v1.10.8
+	github.com/ethereum/go-ethereum v1.10.15
 	github.com/google/go-cmp v0.5.6
 )
 
