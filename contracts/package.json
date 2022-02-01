@@ -4,7 +4,8 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "contract:deploy-localhost": "npx hardhat deploy --network localhost --export-all addresses.json && node ./scripts/postdeploy.ts"
+    "contract:deploy-localhost": "npx hardhat deploy --network localhost --export-all addresses.json && node ./scripts/postdeploy.ts",
+    "contract:node": "npx hardhat node && node ./scripts/postdeploy.ts"
   },
   "keywords": [],
   "author": "",
