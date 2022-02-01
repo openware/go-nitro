@@ -6,6 +6,7 @@ import "@nomiclabs/hardhat-waffle";
 import "@typechain/hardhat";
 import "hardhat-gas-reporter";
 import "solidity-coverage";
+import "hardhat-deploy";
 
 dotenv.config();
 
@@ -48,21 +49,40 @@ const config: HardhatUserConfig = {
       },
     },
   },
+  namedAccounts: {
+    deployer: {
+      default: 0,
+    },
+  },
+  paths: {
+    sources: 'contracts',
+    deploy: 'hardhat-deploy',
+    deployments: 'hardhat-deployments',
+  },
+  // watcher: {
+  //   compilation: {
+  //     tasks: ['compile'],
+  //     verbose: true,
+  //   },
+  // },
   networks: {
     hardhat: {
       accounts: {
-        mnemonic: 'open ware open ware open ware openware open ware open ware openware',
-      }
+        mnemonic: 'open ware open ware open ware open ware open ware open ware',
+      },
+      chainId: 31337,
     },
     ropsten: {
       url: process.env.ROPSTEN_URL || "",
       accounts:
         process.env.PRIVATE_KEY !== undefined ? [process.env.PRIVATE_KEY] : [],
+      chainId: 3,
     },
     rinkeby: {
       url: process.env.RINKEBY_URL || '',
       accounts:
         process.env.PRIVATE_KEY !== undefined ? [process.env.PRIVATE_KEY] : [],
+      chainId: 4,
     },
   },
 };
