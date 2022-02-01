@@ -1,11 +1,11 @@
 {
-  "31337": [
+  "1337": [
     {
       "name": "localhost",
-      "chainId": "31337",
+      "chainId": "1337",
       "contracts": {
         "NitroAdjudicator": {
-          "address": "0x52CAa2dB17e81042B8C7547e48280746c536fE78"
+          "address": "0xB88334AE1bEbA89dA2f886daC6C4D5C6dC658143"
         }
       }
     }

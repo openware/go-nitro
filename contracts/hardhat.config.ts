@@ -70,7 +70,7 @@ const config: HardhatUserConfig = {
       accounts: {
         mnemonic: 'open ware open ware open ware open ware open ware open ware',
       },
-      chainId: 31337,
+      chainId: 1337,
     },
     ropsten: {
       url: process.env.ROPSTEN_URL || "",

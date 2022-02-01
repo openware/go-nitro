@@ -10,10 +10,6 @@ import './MultiAssetHolder.sol';
  * @dev The NitroAdjudicator contract extends MultiAssetHolder and ForceMove
  */
 contract NitroAdjudicator is ForceMove, MultiAssetHolder {
-    function getNumber() public pure returns (uint256) {
-        return 42;
-    }
-    
     /**
      * @notice Finalizes a channel by providing a finalization proof, and liquidates all assets for the channel.
      * @dev Finalizes a channel by providing a finalization proof, and liquidates all assets for the channel.
