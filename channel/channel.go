@@ -107,7 +107,11 @@ func (c Channel) PreFundState() state.State {
 // PostFundState() returns the post fund setup state for the channel.
 func (c Channel) PostFundState() state.State {
 	return c.SignedStateForTurnNum[PostFundTurnNum].State()
+}
 
+// CurrentState() returns the current state for the channel.
+func (c Channel) CurrentState(currentState state.State) state.State {
+	return c.SignedStateForTurnNum[currentState.TurnNum].State()
 }
 
 // PreFundSignedByMe() returns true if I have signed the pre fund setup state, false otherwise.
@@ -130,6 +134,16 @@ func (c Channel) PostFundSignedByMe() bool {
 	return false
 }
 
+// CurrentSignedByMe() returns true if I have signed the current setup state, false otherwise.
+func (c Channel) CurrentStateSignedByMe(state state.State) bool {
+	if _, ok := c.SignedStateForTurnNum[state.TurnNum]; ok {
+		if c.SignedStateForTurnNum[state.TurnNum].HasSignatureForParticipant(c.MyIndex) {
+			return true
+		}
+	}
+	return false
+}
+
 // PreFundComplete() returns true if I have a complete set of signatures on  the pre fund setup state, false otherwise.
 func (c Channel) PreFundComplete() bool {
 	return c.SignedStateForTurnNum[PreFundTurnNum].HasAllSignatures()
@@ -138,6 +152,11 @@ func (c Channel) PreFundComplete() bool {
 // PostFundComplete() returns true if I have a complete set of signatures on  the pre fund setup state, false otherwise.
 func (c Channel) PostFundComplete() bool {
 	return c.SignedStateForTurnNum[PostFundTurnNum].HasAllSignatures()
+}
+
+// PostFundComplete() returns true if I have a complete set of signatures on the current setup state, false otherwise.
+func (c Channel) CurrentStateComplete(state state.State) bool {
+	return c.SignedStateForTurnNum[state.TurnNum].HasAllSignatures()
 }
 
 // LatestSupportedState returns the latest supported state.
