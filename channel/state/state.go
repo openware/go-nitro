@@ -7,6 +7,7 @@ import (
 	"math/big"
 
 	ethAbi "github.com/ethereum/go-ethereum/accounts/abi"
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/statechannels/go-nitro/abi"
 	"github.com/statechannels/go-nitro/channel/state/outcome"
@@ -81,9 +82,7 @@ func (fp FixedPart) ChannelId() (types.Destination, error) {
 		{Type: abi.Uint256},
 		{Type: abi.AddressArray},
 		{Type: abi.Uint256},
-		{Type: abi.Address},
-		{Type: abi.Uint256},
-	}.Pack(fp.ChainId, fp.Participants, fp.ChannelNonce, fp.AppDefinition, fp.ChallengeDuration)
+	}.Pack(fp.ChainId, fp.Participants, fp.ChannelNonce)
 
 	channelId := types.Destination(crypto.Keccak256Hash(encodedChannelPart))
 
@@ -94,6 +93,19 @@ func (fp FixedPart) ChannelId() (types.Destination, error) {
 
 }
 
+func (s State) AppPartHash() (common.Hash, error) {
+	encoded, err := ethAbi.Arguments{
+		{Type: abi.Uint256},
+		{Type: abi.Address},
+		{Type: abi.Bytes},
+	}.Pack(s.ChallengeDuration, s.AppDefinition, []byte(s.AppData))
+	if err != nil {
+		return common.Hash{}, err
+	}
+
+	return crypto.Keccak256Hash(encoded), nil
+}
+
 // encodes the state into a []bytes value
 func (s State) encode() (types.Bytes, error) {
 	ChannelId, error := s.ChannelId()
@@ -101,23 +113,31 @@ func (s State) encode() (types.Bytes, error) {
 		return types.Bytes{}, fmt.Errorf("failed to construct channelId: %w", error)
 	}
 
+	outcomeHash, error := s.Outcome.Hash()
 	if error != nil {
-		return types.Bytes{}, fmt.Errorf("failed to encode outcome: %w", error)
-
+		return types.Bytes{}, fmt.Errorf("failed to hash outcome: %w", error)
 	}
 
+	appPartHash, error := s.AppPartHash()
+	if error != nil {
+		return types.Bytes{}, fmt.Errorf("failed to hash appPart: %w", error)
+	}
+
+	appPart := types.Bytes32(appPartHash)
+	outcome := types.Bytes32(outcomeHash)
+
 	return ethAbi.Arguments{
-		{Type: abi.Destination}, // channel id (includes ChainID, Participants, ChannelNonce)
-		{Type: abi.Bytes},       // app data
-		{Type: outcome.ExitTy},  // outcome
-		{Type: abi.Uint256},     // turnNum
+		{Type: abi.Uint48},      // turnNum
 		{Type: abi.Bool},        // isFinal
+		{Type: abi.Destination}, // channel id (includes ChainID, Participants, ChannelNonce)
+		{Type: abi.Bytes32},     // app data
+		{Type: abi.Bytes32},     // outcome
 	}.Pack(
-		ChannelId,
-		[]byte(s.AppData), // Note: even though s.AppData is types.bytes, which is an alias for []byte], Pack will not accept types.bytes
-		s.Outcome,
 		big.NewInt(int64(s.TurnNum)),
 		s.IsFinal,
+		ChannelId,
+		appPart,
+		outcome,
 	)
 }
 
