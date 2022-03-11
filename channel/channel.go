@@ -109,6 +109,15 @@ func (c Channel) PostFundState() state.State {
 	return c.SignedStateForTurnNum[PostFundTurnNum].State()
 }
 
+func (c Channel) LastState() state.State {
+	lastStateNum := len(c.SignedStateForTurnNum)
+	return c.SignedStateForTurnNum[uint64(lastStateNum)].State()
+}
+
+func (c Channel) LastStateNum() int {
+	return len(c.SignedStateForTurnNum)
+}
+
 // CurrentState() returns the current state for the channel.
 func (c Channel) CurrentState(currentState state.State) state.State {
 	return c.SignedStateForTurnNum[currentState.TurnNum].State()
