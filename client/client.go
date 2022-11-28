@@ -5,6 +5,7 @@ import (
 	"io"
 	"math/big"
 	"math/rand"
+	"time"
 
 	"github.com/statechannels/go-nitro/channel/state/outcome"
 	"github.com/statechannels/go-nitro/client/engine"
@@ -158,6 +159,58 @@ func (c *Client) CloseLedgerChannel(channelId types.Destination) protocols.Objec
 
 	return objectiveRequest.Id(*c.Address)
 
+}
+
+// CreateChannel creates a channel with the given counterparty.
+func (c *Client) CreateChannel(
+	counterparty types.Address,
+	appDefinition types.Address,
+	challengeDuration uint32,
+	outcome outcome.Exit,
+	appData types.Bytes,
+) directfund.ObjectiveResponse {
+	objectiveRequest := directfund.ObjectiveRequest{
+		CounterParty:      counterparty,
+		AppDefinition:     appDefinition,
+		ChallengeDuration: challengeDuration,
+		Outcome:           outcome,
+		Nonce:             uint64(time.Now().UTC().UnixMilli()),
+		AppData:           appData,
+	}
+
+	c.engine.ObjectiveRequestsFromAPI <- objectiveRequest
+
+	return objectiveRequest.Response(*c.Address)
+}
+
+// CloseChannel attempts to push next state to the channel with the given channelId.
+func (c *Client) AdvanceChannel(
+	channelId types.Destination,
+	outcome outcome.Exit,
+	appData types.Bytes,
+) protocols.ObjectiveId {
+	// objectiveRequest := directadvance.ObjectiveRequest{
+	// 	ChannelId: channelId,
+
+	// 	//
+	// }
+
+	// c.engine.ObjectiveRequestsFromAPI <- objectiveRequest
+
+	// return objectiveRequest.Id(*c.Address)
+
+	panic("not implemented")
+}
+
+// CloseChannel attempts to close and defund the given directly funded channel.
+func (c *Client) CloseChannel(channelId types.Destination) protocols.ObjectiveId {
+	objectiveRequest := directdefund.ObjectiveRequest{
+		ChannelId: channelId,
+	}
+
+	c.engine.ObjectiveRequestsFromAPI <- objectiveRequest
+
+	return objectiveRequest.Id(*c.Address)
 }
 
 // Pay will send a signed voucher to the payee that they can redeem for the given amount.

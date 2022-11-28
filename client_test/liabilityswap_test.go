@@ -26,6 +26,10 @@ const liabilitySwapChannelDeposit = 100_000
 //
 // TODO:
 // 1. Use a pure state channel instead of a ledger channel to use AppData to store liabilities
+//   a. Implement direct-advance protocol objective
+//   b. Implement Engine advanceChannel function
+//   c. Update Engine to support pure state channels (decouple from consensus channels, storage, etc.)
+//   d. Check that direct direct-fund/defund protocols support pure state channels
 // 2. Implement a Serde for liabilities
 //
 
@@ -76,7 +80,13 @@ func TestLiabilitySwap(t *testing.T) {
 	tokenWETHAddress, _, _, err := Token.DeployToken(accounts[0], sim, accounts[0].From)
 	require.NoError(t, err)
 
-	liabilitySwapDirectlyFundALedgerChannel(t, clientI, clientJ, tokenUSDTAddress)
+	cId := liabilitySwapDirectlyFundALedgerChannel(
+		t,
+		clientI,
+		clientJ,
+		chainI.GetConsensusAppAddress(), // TODO: Use liabilities app instead of consensus app
+		tokenUSDTAddress,
+	)
 
 	want := createLiabilitySwapOutcome(*clientI.Address, *clientJ.Address, tokenWETHAddress, 1, 10)
 
@@ -105,12 +115,36 @@ func TestLiabilitySwap(t *testing.T) {
 		_, channelStillInStore := store.GetChannelById(con.Id)
 		require.True(t, channelStillInStore, "Expected channel to have been destroyed")
 	}
+
+	// TODO: Advance channel using outcomes/appData to represent a swap
+	_ = cId
+	// oId := clientI.AdvanceChannel(
+	// 	cId,
+	// 	nextOutcome,
+	// 	nextAppData,
+	// )
+	// waitTimeForCompletedObjectiveIds(t, &clientI, defaultTimeout, oId)
+	// waitTimeForCompletedObjectiveIds(t, &clientJ, defaultTimeout, oId)
 }
 
-func liabilitySwapDirectlyFundALedgerChannel(t *testing.T, clientI, clientJ client.Client, tokenUSDTAddress common.Address) types.Destination {
+func liabilitySwapDirectlyFundALedgerChannel(
+	t *testing.T,
+	clientI, clientJ client.Client,
+	appDeifinition types.Address,
+	tokenUSDTAddress common.Address,
+) types.Destination {
 	// Set up an outcome that requires both participants to deposit
 	outcome := createLiabilitySwapOutcome(*clientI.Address, *clientJ.Address, tokenUSDTAddress, liabilitySwapChannelDeposit, liabilitySwapChannelDeposit)
-	response := clientI.CreateLedgerChannel(*clientJ.Address, 0, outcome)
+
+	appData := []byte("") // TODO: Create initial appData once format is decided
+
+	response := clientI.CreateChannel(
+		*clientJ.Address,
+		appDeifinition,
+		0,
+		outcome,
+		appData,
+	)
 
 	waitTimeForCompletedObjectiveIds(t, &clientI, defaultTimeout, response.Id)
 	waitTimeForCompletedObjectiveIds(t, &clientJ, defaultTimeout, response.Id)
