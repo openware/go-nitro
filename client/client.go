@@ -161,8 +161,9 @@ func (c *Client) CloseLedgerChannel(channelId types.Destination) protocols.Objec
 
 }
 
-// CreateChannel creates a channel with the given counterparty.
-func (c *Client) CreateChannel(
+// CreateCustomLedgerChannel creates a channel with the given counterparty.
+// This function allows to use a custom app passing the appDefintion and initial addData
+func (c *Client) CreateCustomLedgerChannel(
 	counterparty types.Address,
 	appDefinition types.Address,
 	challengeDuration uint32,
