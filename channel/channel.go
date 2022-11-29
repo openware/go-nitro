@@ -12,6 +12,9 @@ import (
 	"github.com/statechannels/go-nitro/types"
 )
 
+// StateTransitionValidator allow to implement a custom app, it validates the transition between 2 states
+type StateTransitionValidator func(state.State, state.State) bool
+
 // Channel contains states and metadata and exposes convenience methods.
 type Channel struct {
 	Id      types.Destination
@@ -27,6 +30,8 @@ type Channel struct {
 	// Longer term, we should have a more efficient and smart mechanism to store states https://github.com/statechannels/go-nitro/issues/106
 
 	latestSupportedStateTurnNum uint64 // largest uint64 value reserved for "no supported state"
+
+	StateTransitionValidator StateTransitionValidator // state transition validator
 }
 
 // New constructs a new Channel from the supplied state.
@@ -249,6 +254,12 @@ func (c *Channel) AddSignedState(ss state.SignedState) bool {
 	if c.latestSupportedStateTurnNum != MaxTurnNum && s.TurnNum < c.latestSupportedStateTurnNum {
 		// Stale state
 		return false
+	}
+
+	if prevSs, err := c.LatestSignedState(); err != nil {
+		if c.StateTransitionValidator != nil && !c.StateTransitionValidator(prevSs.State(), ss.State()) {
+			return false
+		}
 	}
 
 	// Store the signatures. If we have no record yet, add one.

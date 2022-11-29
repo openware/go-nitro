@@ -7,6 +7,7 @@ import (
 	"math/rand"
 	"time"
 
+	"github.com/statechannels/go-nitro/channel/state"
 	"github.com/statechannels/go-nitro/channel/state/outcome"
 	"github.com/statechannels/go-nitro/client/engine"
 	"github.com/statechannels/go-nitro/client/engine/chainservice"
@@ -169,14 +170,16 @@ func (c *Client) CreateCustomLedgerChannel(
 	challengeDuration uint32,
 	outcome outcome.Exit,
 	appData types.Bytes,
+	validateStateTransition func(state.State, state.State) bool,
 ) directfund.ObjectiveResponse {
 	objectiveRequest := directfund.ObjectiveRequest{
-		CounterParty:      counterparty,
-		AppDefinition:     appDefinition,
-		ChallengeDuration: challengeDuration,
-		Outcome:           outcome,
-		Nonce:             uint64(time.Now().UTC().UnixMilli()),
-		AppData:           appData,
+		CounterParty:            counterparty,
+		AppDefinition:           appDefinition,
+		ChallengeDuration:       challengeDuration,
+		Outcome:                 outcome,
+		Nonce:                   uint64(time.Now().UTC().UnixMilli()),
+		AppData:                 appData,
+		ValidateStateTransition: validateStateTransition,
 	}
 
 	c.engine.ObjectiveRequestsFromAPI <- objectiveRequest

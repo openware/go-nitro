@@ -8,6 +8,7 @@ import (
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/statechannels/go-nitro/channel/consensus_channel"
+	"github.com/statechannels/go-nitro/channel/state"
 	"github.com/statechannels/go-nitro/channel/state/outcome"
 	"github.com/statechannels/go-nitro/client"
 	"github.com/statechannels/go-nitro/client/engine/chainservice"
@@ -146,6 +147,9 @@ func liabilitySwapDirectlyFundALedgerChannel(
 		0,
 		outcome,
 		appData,
+		func(s1, s2 state.State) bool {
+			return true
+		},
 	)
 
 	waitTimeForCompletedObjectiveIds(t, &clientI, defaultTimeout, response.Id)

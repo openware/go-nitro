@@ -85,6 +85,7 @@ func NewObjective(request ObjectiveRequest, preApprove bool, myAddress types.Add
 	if channelsExistWithCounterparty(request.CounterParty, getChannels, getTwoPartyConsensusLedger) {
 		return Objective{}, fmt.Errorf("a channel already exists with counterparty %s", request.CounterParty)
 	}
+	objective.C.StateTransitionValidator = request.ValidateStateTransition
 	return objective, nil
 }
 
@@ -445,12 +446,13 @@ func IsDirectFundObjective(id protocols.ObjectiveId) bool {
 
 // ObjectiveRequest represents a request to create a new direct funding objective.
 type ObjectiveRequest struct {
-	CounterParty      types.Address
-	ChallengeDuration uint32
-	Outcome           outcome.Exit
-	AppDefinition     types.Address
-	AppData           types.Bytes
-	Nonce             uint64
+	CounterParty            types.Address
+	ChallengeDuration       uint32
+	Outcome                 outcome.Exit
+	AppDefinition           types.Address
+	AppData                 types.Bytes
+	Nonce                   uint64
+	ValidateStateTransition channel.StateTransitionValidator
 }
 
 // Id returns the objective id for the request.
