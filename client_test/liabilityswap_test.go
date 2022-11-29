@@ -27,8 +27,8 @@ var liabilitySwapChannelDeposit = big.NewInt(1000000000000000000) // 1 eth in we
 //
 // TODO:
 // 1. Introduce the ability to use a Ledger Channel with custom App (AppDefinition and AppData)
-//   a. Implement direct-advance protocol objective
-//   b. Implement Engine advanceChannel function
+//   a. Implement direct-transition protocol objective
+//   b. Implement Engine transitionChannel function
 //   c. Update Engine to support pure state channels (decouple from consensus channels, storage, etc.)
 //   d. Check that direct direct-fund/defund protocols support pure state channels
 // 2. Implement a Serde for liabilities
@@ -121,7 +121,7 @@ func TestLiabilitySwap(t *testing.T) {
 
 	// TODO: Advance channel using outcomes/appData to represent a swap
 	_ = cId
-	// oId := clientI.AdvanceChannel(
+	// oId := clientI.TransitionChannel(
 	// 	cId,
 	// 	nextOutcome,
 	// 	nextAppData,
@@ -141,7 +141,7 @@ func liabilitySwapDirectlyFundALedgerChannel(
 
 	appData := []byte("") // TODO: Create initial appData once format is decided
 
-	response := clientI.CreateCustomLedgerChannel(
+	response := clientI.CreateDirectChannel(
 		*clientJ.Address,
 		appDeifinition,
 		0,
