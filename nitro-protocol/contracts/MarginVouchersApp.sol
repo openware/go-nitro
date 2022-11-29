@@ -8,17 +8,26 @@ import './interfaces/INitroTypes.sol';
 import {ExitFormat as Outcome} from '@statechannels/exit-format/contracts/ExitFormat.sol';
 
 /**
- * @dev The MarginVouchersApp contract complies with the ForceMoveApp interface and allows payments to be made virtually from Alice to Bob (participants[0] to participants[n+1], where n is the number of intermediaries).
+ * @dev The MarginVouchersApp contract complies with the ForceMoveApp interface and allows payments to be made virtually from Initiator to Receiver (participants[0] to participants[n+1], where n is the number of intermediaries).
  */
 contract MarginVouchersApp is IForceMoveApp {
+    // TODO:
+    struct MarginVoucher {
+        uint256 initiatorMargin;
+        uint256 receiverMargin;
+        INitroTypes.Signature initiatorSignature; // initiator signature on abi.encode(channelId,amount)
+        INitroTypes.Signature receiverSignature; // receiver signature on abi.encode(channelId,amount)
+        int256 version; // to distinct between valid vouchers
+    }
+
     struct VoucherAmountAndSignature {
         uint256 amount;
         INitroTypes.Signature signature; // signature on abi.encode(channelId,amount)
     }
 
     enum AllocationIndices {
-        Alice, // payer
-        Bob // beneficiary, initial allocation is zero
+        Initiator,
+        Receiver
     }
 
     /**
@@ -34,12 +43,12 @@ contract MarginVouchersApp is IForceMoveApp {
         RecoveredVariablePart calldata candidate
     ) external pure override {
         // This channel has only 4 states which can be supported:
-        // 0 prefund
-        // 1 postfund
-        // 2 redemption
-        // 3 final
+        // 0    prefund
+        // 1    postfund
+        // 2+   margin voucher
+        // 3+   final
 
-        // states 0,1,3 can be supported via unanimous consensus:
+        // states 0,1,3+ can be supported via unanimous consensus:
 
         if (proof.length == 0) {
             require(
@@ -47,30 +56,39 @@ contract MarginVouchersApp is IForceMoveApp {
                     fixedPart.participants.length,
                 '!unanimous; |proof|=0'
             );
-            if (candidate.variablePart.turnNum == 0) return; // prefund
-            if (candidate.variablePart.turnNum == 1) return; // postfund
+            if (candidate.variablePart.turnNum == 0) {
+                // TODO: requireOneAsset(...)
+                return;
+            }
+
+            // prefund
+            if (candidate.variablePart.turnNum == 1) {
+                // TODO: requireOneAsset(...)
+                return;
+            }
+
+            // postfund
+            // TODO: can we safely remove this check? Final turn number is NOT FIXED (3+). Any assumptions CAN NOT be based on it.
             if (candidate.variablePart.turnNum == 3) {
                 // final (note: there is a core protocol escape hatch for this, too, so it could be removed)
                 require(candidate.variablePart.isFinal, '!final; turnNum=3 && |proof|=0');
                 return;
             }
+
             revert('bad candidate turnNum; |proof|=0');
         }
 
-        // State 2 can be supported via a forced transition from state 1:
-        //
-        //      (2)_B     [redemption state signed by Bob, includes a voucher signed by Alice. The outcome may be updated in favour of Bob]
-        //      ^
-        //      |
-        //      (1)_AIB   [fully signed postfund]
+        // TODO: state 2+ also must be supported via unanimous consensus, but requires previous supported to be supplied
 
         if (proof.length == 1) {
             requireProofOfUnanimousConsensusOnPostFund(proof[0], fixedPart.participants.length);
             require(candidate.variablePart.turnNum == 2, 'bad candidate turnNum; |proof|=1');
             require(
                 NitroUtils.isClaimedSignedBy(candidate.signedBy, 2),
-                'redemption not signed by Bob'
+                'redemption not signed by Receiver'
             );
+            // TODO: require previous state is also valid
+            // TODO: retrieve both party margin amounts
             uint256 voucherAmount = requireValidVoucher(candidate.variablePart.appData, fixedPart);
             requireCorrectAdjustments(
                 proof[0].variablePart.outcome,
@@ -99,6 +117,7 @@ contract MarginVouchersApp is IForceMoveApp {
     ) internal pure returns (uint256) {
         VoucherAmountAndSignature memory voucher = abi.decode(appData, (VoucherAmountAndSignature));
 
+        // TODO: validate both signatures
         address signer = NitroUtils.recoverSigner(
             keccak256(abi.encode(NitroUtils.getChannelId(fixedPart), voucher.amount)),
             voucher.signature
@@ -112,6 +131,12 @@ contract MarginVouchersApp is IForceMoveApp {
         Outcome.SingleAssetExit[] memory newOutcome,
         uint256 voucherAmount
     ) internal pure {
+        // TODO:
+        // check the sum has not changed
+        // requireOneAsset(...)
+        // check asset has not changed
+
+        // >>>>> REMOVE >>>>>
         require(
             oldOutcome.length == 1 &&
                 newOutcome.length == 1 &&
@@ -121,13 +146,20 @@ contract MarginVouchersApp is IForceMoveApp {
         );
 
         require(
-            newOutcome[0].allocations[uint256(AllocationIndices.Alice)].amount ==
-                oldOutcome[0].allocations[uint256(AllocationIndices.Alice)].amount - voucherAmount,
-            'Alice not adjusted correctly'
+            newOutcome[0].allocations[uint256(AllocationIndices.Initiator)].amount ==
+                oldOutcome[0].allocations[uint256(AllocationIndices.Initiator)].amount -
+                    voucherAmount,
+            'Initiator not adjusted correctly'
         );
         require(
-            newOutcome[0].allocations[uint256(AllocationIndices.Bob)].amount == voucherAmount,
-            'Bob not adjusted correctly'
+            newOutcome[0].allocations[uint256(AllocationIndices.Receiver)].amount == voucherAmount,
+            'Receiver not adjusted correctly'
         );
+        // <<<<< REMOVE <<<<<
+    }
+
+    function requireOneAsset(Outcome.SingleAssetExit[] memory outcome) internal pure {
+        // TODO:
+        // check only one asset
     }
 }
