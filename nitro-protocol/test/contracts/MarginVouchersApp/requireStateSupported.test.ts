@@ -23,7 +23,7 @@ import {
 } from '../../test-helpers';
 const {HashZero} = ethers.constants;
 
-let virtualPaymentApp: Contract;
+let marginVouchersApp: Contract;
 const provider = getTestProvider();
 const chainId = process.env.CHAIN_NETWORK_ID;
 
@@ -47,11 +47,11 @@ const baseState: State = {
 const fixedPart = getFixedPart(baseState);
 const channelId = getChannelId(fixedPart);
 
-const alice = convertAddressToBytes32(participants[0]); // NOTE these desinations do not necessarily need to be related to participant addresses
-const bob = convertAddressToBytes32(participants[2]);
+const initiator = convertAddressToBytes32(participants[0]); // NOTE: these destinations do not necessarily need to be related to participant addresses
+const receiver = convertAddressToBytes32(participants[2]);
 
 beforeAll(async () => {
-  virtualPaymentApp = setupContract(
+  marginVouchersApp = setupContract(
     provider,
     MarginVouchersAppArtifact,
     process.env.MARGIN_VOUCHERS_APP_ADDRESS
@@ -93,11 +93,11 @@ describe('requireStateSupported (lone candidate route)', () => {
 
       if (tc.reason) {
         await expectRevert(
-          () => virtualPaymentApp.requireStateSupported(fixedPart, [], candidate),
+          () => marginVouchersApp.requireStateSupported(fixedPart, [], candidate),
           tc.reason
         );
       } else {
-        await virtualPaymentApp.requireStateSupported(fixedPart, [], candidate);
+        await marginVouchersApp.requireStateSupported(fixedPart, [], candidate);
       }
     });
   });
@@ -108,14 +108,14 @@ describe('requireStateSupported (candidate plus single proof state route)', () =
     proofTurnNum: number;
     candidateTurnNum: number;
     unanimityOnProof: boolean;
-    bobSignedCandidate: boolean;
+    receiverSignedCandidate: boolean;
     voucherForThisChannel: boolean;
-    voucherSignedByAlice: boolean;
-    aliceAdjustedCorrectly: boolean;
-    bobAdjustedCorrectly: boolean;
+    voucherSignedByInitiator: boolean;
+    initiatorAdjustedCorrectly: boolean;
+    receiverAdjustedCorrectly: boolean;
     nativeAsset: boolean;
     multipleAssets: boolean;
-    aliceUnderflow: boolean;
+    initiatorUnderflow: boolean;
     reason?: string;
   }
 
@@ -124,28 +124,28 @@ describe('requireStateSupported (candidate plus single proof state route)', () =
     proofTurnNum: 1,
     candidateTurnNum: 2,
     unanimityOnProof: true,
-    bobSignedCandidate: true,
+    receiverSignedCandidate: true,
     voucherForThisChannel: true,
-    voucherSignedByAlice: true,
-    aliceAdjustedCorrectly: true,
-    bobAdjustedCorrectly: true,
+    voucherSignedByInitiator: true,
+    initiatorAdjustedCorrectly: true,
+    receiverAdjustedCorrectly: true,
     nativeAsset: true,
     multipleAssets: false,
-    aliceUnderflow: false,
+    initiatorUnderflow: false,
     reason: undefined,
   };
   const testcases: TestCase[] = [
     vVR,
     {...vVR, proofTurnNum: 0, reason: 'bad proof[0].turnNum; |proof|=1'},
     {...vVR, unanimityOnProof: false, reason: 'postfund !unanimous; |proof|=1'},
-    {...vVR, bobSignedCandidate: false, reason: 'redemption not signed by Bob'},
-    {...vVR, voucherSignedByAlice: false, reason: 'invalid signature for voucher'},
+    {...vVR, receiverSignedCandidate: false, reason: 'redemption not signed by Receiver'},
+    {...vVR, voucherSignedByInitiator: false, reason: 'invalid signature for voucher'},
     {...vVR, voucherForThisChannel: false, reason: 'invalid signature for voucher'},
-    {...vVR, aliceAdjustedCorrectly: false, reason: 'Alice not adjusted correctly'},
-    {...vVR, bobAdjustedCorrectly: false, reason: 'Bob not adjusted correctly'},
+    {...vVR, initiatorAdjustedCorrectly: false, reason: 'Initiator not adjusted correctly'},
+    {...vVR, receiverAdjustedCorrectly: false, reason: 'Receiver not adjusted correctly'},
     {...vVR, nativeAsset: false, reason: 'only native asset allowed'},
     {...vVR, multipleAssets: true, reason: 'only native asset allowed'},
-    {...vVR, aliceUnderflow: true, reason: ' '}, // we expect transaction to revert without a reason string
+    {...vVR, initiatorUnderflow: true, reason: ' '}, // we expect transaction to revert without a reason string
   ];
 
   testcases.map(async tc => {
@@ -157,13 +157,13 @@ describe('requireStateSupported (candidate plus single proof state route)', () =
         turnNum: tc.proofTurnNum,
         isFinal: false,
         outcome: computeOutcome({
-          [MAGIC_ETH_ADDRESS]: {[alice]: 10, [bob]: 10},
+          [MAGIC_ETH_ADDRESS]: {[initiator]: 10, [receiver]: 10},
         }),
       };
 
       // construct voucher with the (in)appropriate channelId
-      const amount = tc.aliceUnderflow
-        ? BigNumber.from(999_999_999_999).toHexString() // much larger than Alice's original balance
+      const amount = tc.initiatorUnderflow
+        ? BigNumber.from(999_999_999_999).toHexString() // much larger than Initiator's original balance
         : BigNumber.from(7).toHexString();
 
       const voucher: Voucher = {
@@ -175,7 +175,7 @@ describe('requireStateSupported (candidate plus single proof state route)', () =
 
       // make an (in)valid signature
       const signature = await signVoucher(voucher, wallets[0]);
-      if (!tc.voucherSignedByAlice) signature.s = signature.r; // (conditionally) corrupt the signature
+      if (!tc.voucherSignedByInitiator) signature.s = signature.r; // (conditionally) corrupt the signature
 
       // embed voucher into candidate state
       const encodedVoucherAmountAndSignature = encodeVoucherAmountAndSignature(amount, signature);
@@ -183,8 +183,8 @@ describe('requireStateSupported (candidate plus single proof state route)', () =
         ...proofState,
         outcome: computeOutcome({
           [MAGIC_ETH_ADDRESS]: {
-            [alice]: tc.aliceAdjustedCorrectly ? 3 : 2,
-            [bob]: tc.bobAdjustedCorrectly ? 7 : 99,
+            [initiator]: tc.initiatorAdjustedCorrectly ? 3 : 2,
+            [receiver]: tc.receiverAdjustedCorrectly ? 7 : 99,
           },
         }),
         turnNum: tc.candidateTurnNum,
@@ -204,19 +204,19 @@ describe('requireStateSupported (candidate plus single proof state route)', () =
         },
       ];
 
-      // Sign the candidate state (should be just Bob)
+      // Sign the candidate state (should be just Receiver)
       const candidate: RecoveredVariablePart = {
         variablePart: getVariablePart(candidateState),
-        signedBy: BigNumber.from(tc.bobSignedCandidate ? 0b100 : 0b000).toHexString(), // 0b100 signed by Bob obly
+        signedBy: BigNumber.from(tc.receiverSignedCandidate ? 0b100 : 0b000).toHexString(), // 0b100 signed by Receiver only
       };
 
       if (tc.reason) {
         await expectRevert(
-          () => virtualPaymentApp.requireStateSupported(fixedPart, proof, candidate),
+          () => marginVouchersApp.requireStateSupported(fixedPart, proof, candidate),
           tc.reason
         );
       } else {
-        await virtualPaymentApp.requireStateSupported(fixedPart, proof, candidate);
+        await marginVouchersApp.requireStateSupported(fixedPart, proof, candidate);
       }
     });
   });
@@ -232,7 +232,7 @@ describe('requireStateSupported (longer proof state route)', () => {
     };
 
     await expectRevert(
-      () => virtualPaymentApp.requireStateSupported(fixedPart, [candidate, candidate], candidate),
+      () => marginVouchersApp.requireStateSupported(fixedPart, [candidate, candidate], candidate),
       'bad proof length'
     );
   });
