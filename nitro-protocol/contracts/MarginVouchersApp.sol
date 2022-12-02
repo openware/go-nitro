@@ -11,19 +11,6 @@ import {ExitFormat as Outcome} from '@statechannels/exit-format/contracts/ExitFo
  * @dev The MarginVouchersApp contract complies with the ForceMoveApp interface and allows payments to be made virtually from Initiator to Receiver (participants[0] to participants[n+1], where n is the number of intermediaries).
  */
 contract MarginVouchersApp is IForceMoveApp {
-    struct NewMargin {
-        uint256 initiatorMargin;
-        uint256 receiverMargin;
-    }
-
-    struct MarginVoucher {
-        uint256 initiatorMargin;
-        uint256 receiverMargin;
-        INitroTypes.Signature initiatorSignature; // initiator signature on abi.encode(channelId,amount)
-        INitroTypes.Signature receiverSignature; // receiver signature on abi.encode(channelId,amount)
-        int256 nonce; // to distinct between valid vouchers
-    }
-
     enum AllocationIndices {
         Initiator,
         Receiver
@@ -73,6 +60,8 @@ contract MarginVouchersApp is IForceMoveApp {
         // state 2+ requires previous supported state to be supplied
 
         if (proof.length == 1) {
+            require(candidate.variablePart.turnNum >= 2, 'turnNum < 2; |proof|=1');
+
             // previous state is unanimously signed
             require(
                 NitroUtils.getClaimedSignersNum(proof[0].signedBy) == fixedPart.participants.length,
@@ -85,73 +74,15 @@ contract MarginVouchersApp is IForceMoveApp {
                 'candidate turnNum not increased'
             );
 
-            NewMargin memory newMargin = _requireValidVoucher(
-                candidate.variablePart.appData,
-                fixedPart
+            _requireSumHasNotChanged(
+                proof[0].variablePart.outcome[0].allocations,
+                candidate.variablePart.outcome[0].allocations,
+                nParticipants
             );
 
-            _requireCorrectAdjustments(
-                proof[0].variablePart.outcome,
-                candidate.variablePart.outcome,
-                nParticipants,
-                newMargin
-            );
             return;
         }
         revert('bad proof length');
-    }
-
-    function _requireValidVoucher(
-        bytes memory appData,
-        FixedPart memory fixedPart
-    ) internal pure returns (NewMargin memory) {
-        MarginVoucher memory voucher = abi.decode(appData, (MarginVoucher));
-
-        NewMargin memory newMargin = NewMargin(voucher.initiatorMargin, voucher.receiverMargin);
-
-        // validate initiator signature
-        address initiatorSigner = NitroUtils.recoverSigner(
-            keccak256(abi.encode(NitroUtils.getChannelId(fixedPart), newMargin)),
-            voucher.initiatorSignature
-        );
-        require(initiatorSigner == fixedPart.participants[0], 'invalid signature for voucher'); // could be incorrect channelId or incorrect signature
-
-        // validate receiver signature
-        address receiverSigner = NitroUtils.recoverSigner(
-            keccak256(abi.encode(NitroUtils.getChannelId(fixedPart), newMargin)),
-            voucher.receiverSignature
-        );
-        require(receiverSigner == fixedPart.participants[0], 'invalid signature for voucher'); // could be incorrect channelId or incorrect signature
-
-        return newMargin;
-    }
-
-    function _requireCorrectAdjustments(
-        Outcome.SingleAssetExit[] memory oldOutcome,
-        Outcome.SingleAssetExit[] memory newOutcome,
-        uint256 nParticipants,
-        NewMargin memory newMargin
-    ) internal pure {
-        require(oldOutcome.length == 1 && newOutcome.length == 1, 'only one asset allowed');
-
-        // check the sum has not changed
-        _requireSumHasNotChanged(
-            oldOutcome[0].allocations,
-            newOutcome[0].allocations,
-            nParticipants
-        );
-
-        // check new outcome is set respecting the MarginVoucher
-        require(
-            newOutcome[0].allocations[uint256(AllocationIndices.Initiator)].amount ==
-                newMargin.initiatorMargin,
-            'Initiator not adjusted correctly'
-        );
-        require(
-            newOutcome[0].allocations[uint256(AllocationIndices.Receiver)].amount ==
-                newMargin.receiverMargin,
-            'Receiver not adjusted correctly'
-        );
     }
 
     function _requireSumHasNotChanged(
