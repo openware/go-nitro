@@ -16,7 +16,7 @@ import tokenArtifact from '../artifacts/contracts/Token.sol/Token.json';
 import trivialAppArtifact from '../artifacts/contracts/TrivialApp.sol/TrivialApp.json';
 import consensusAppArtifact from '../artifacts/contracts/ConsensusApp.sol/ConsensusApp.json';
 import virtualPaymentAppArtifact from '../artifacts/contracts/VirtualPaymentApp.sol/VirtualPaymentApp.json';
-import marginVouchersAppArtifact from '../artifacts/contracts/MarginVouchersApp.sol/MarginVouchersApp.json';
+import MarginAppArtifact from '../artifacts/contracts/MarginApp.sol/MarginApp.json';
 const rpcEndPoint = 'http://localhost:' + process.env.GANACHE_PORT;
 const provider = new providers.JsonRpcProvider(rpcEndPoint);
 
@@ -36,7 +36,7 @@ const [
   trivialAppFactory,
   consensusAppFactory,
   virtualPaymentAppFactory,
-  marginVouchersAppFactory,
+  MarginAppFactory,
 ] = [
   countingAppArtifact,
   nitroAdjudicatorArtifact,
@@ -51,7 +51,7 @@ const [
   trivialAppArtifact,
   consensusAppArtifact,
   virtualPaymentAppArtifact,
-  marginVouchersAppArtifact,
+  MarginAppArtifact,
 ].map(artifact =>
   new ContractFactory(artifact.abi, artifact.bytecode).connect(provider.getSigner(0))
 );
@@ -64,7 +64,7 @@ export async function deploy(): Promise<Record<string, string>> {
   const SINGLE_ASSET_PAYMENTS_ADDRESS = (await singleAssetPaymentsFactory.deploy()).address;
   const CONSENSUS_APP_ADDRESS = await (await consensusAppFactory.deploy()).address;
   const VIRTUAL_PAYMENT_APP_ADDRESS = await (await virtualPaymentAppFactory.deploy()).address;
-  const MARGIN_VOUCHERS_APP_ADDRESS = await (await marginVouchersAppFactory.deploy()).address;
+  const MARGIN_VOUCHERS_APP_ADDRESS = await (await MarginAppFactory.deploy()).address;
 
   const TEST_NITRO_ADJUDICATOR_ADDRESS = (await testNitroAdjudicatorFactory.deploy()).address;
   const TRIVIAL_APP_ADDRESS = (await trivialAppFactory.deploy()).address;

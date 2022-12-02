@@ -8,9 +8,9 @@ import './interfaces/INitroTypes.sol';
 import {ExitFormat as Outcome} from '@statechannels/exit-format/contracts/ExitFormat.sol';
 
 /**
- * @dev The MarginVouchersApp contract complies with the ForceMoveApp interface and allows payments to be made virtually from Initiator to Receiver (participants[0] to participants[n+1], where n is the number of intermediaries).
+ * @dev The MarginApp contract complies with the ForceMoveApp interface and allows payments to be made virtually from Initiator to Receiver (participants[0] to participants[n+1], where n is the number of intermediaries).
  */
-contract MarginVouchersApp is IForceMoveApp {
+contract MarginApp is IForceMoveApp {
     enum AllocationIndices {
         Initiator,
         Receiver
@@ -31,7 +31,7 @@ contract MarginVouchersApp is IForceMoveApp {
         // This channel has only 4 states which can be supported:
         // 0    prefund
         // 1    postfund
-        // 2+   margin voucher
+        // 2+   margin change
         // 3+   final
 
         uint256 nParticipants = fixedPart.participants.length;
@@ -42,12 +42,10 @@ contract MarginVouchersApp is IForceMoveApp {
         // states 0,1,3+:
 
         if (proof.length == 0) {
-            // TODO: do we need a check allocations and destination has not changed? (as in SingleAssetPayments)
             if (candidate.variablePart.turnNum == 0) return; // prefund
             if (candidate.variablePart.turnNum == 1) return; // postfund
 
             // postfund
-            // TODO: can we safely remove this check? Final turn number is NOT FIXED (3+). Any assumptions CAN NOT be based on it.
             if (candidate.variablePart.turnNum >= 3) {
                 // final (note: there is a core protocol escape hatch for this, too, so it could be removed)
                 require(candidate.variablePart.isFinal, '!final; turnNum>=3 && |proof|=0');

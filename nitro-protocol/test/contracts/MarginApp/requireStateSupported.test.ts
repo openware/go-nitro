@@ -1,7 +1,7 @@
 import {expectRevert} from '@statechannels/devtools';
 import {Contract, ethers, BigNumber} from 'ethers';
 
-import MarginVouchersAppArtifact from '../../../artifacts/contracts/MarginVouchersApp.sol/MarginVouchersApp.json';
+import MarginAppArtifact from '../../../artifacts/contracts/MarginApp.sol/MarginApp.json';
 import {
   convertAddressToBytes32,
   encodeVoucherAmountAndSignature,
@@ -23,7 +23,7 @@ import {
 } from '../../test-helpers';
 const {HashZero} = ethers.constants;
 
-let marginVouchersApp: Contract;
+let MarginApp: Contract;
 const provider = getTestProvider();
 const chainId = process.env.CHAIN_NETWORK_ID;
 
@@ -51,11 +51,7 @@ const initiator = convertAddressToBytes32(participants[0]); // NOTE: these desti
 const receiver = convertAddressToBytes32(participants[2]);
 
 beforeAll(async () => {
-  marginVouchersApp = setupContract(
-    provider,
-    MarginVouchersAppArtifact,
-    process.env.MARGIN_VOUCHERS_APP_ADDRESS
-  );
+  MarginApp = setupContract(provider, MarginAppArtifact, process.env.MARGIN_VOUCHERS_APP_ADDRESS);
 });
 
 describe('requireStateSupported (lone candidate route)', () => {
@@ -93,11 +89,11 @@ describe('requireStateSupported (lone candidate route)', () => {
 
       if (tc.reason) {
         await expectRevert(
-          () => marginVouchersApp.requireStateSupported(fixedPart, [], candidate),
+          () => MarginApp.requireStateSupported(fixedPart, [], candidate),
           tc.reason
         );
       } else {
-        await marginVouchersApp.requireStateSupported(fixedPart, [], candidate);
+        await MarginApp.requireStateSupported(fixedPart, [], candidate);
       }
     });
   });
@@ -212,11 +208,11 @@ describe('requireStateSupported (candidate plus single proof state route)', () =
 
       if (tc.reason) {
         await expectRevert(
-          () => marginVouchersApp.requireStateSupported(fixedPart, proof, candidate),
+          () => MarginApp.requireStateSupported(fixedPart, proof, candidate),
           tc.reason
         );
       } else {
-        await marginVouchersApp.requireStateSupported(fixedPart, proof, candidate);
+        await MarginApp.requireStateSupported(fixedPart, proof, candidate);
       }
     });
   });
@@ -232,7 +228,7 @@ describe('requireStateSupported (longer proof state route)', () => {
     };
 
     await expectRevert(
-      () => marginVouchersApp.requireStateSupported(fixedPart, [candidate, candidate], candidate),
+      () => MarginApp.requireStateSupported(fixedPart, [candidate, candidate], candidate),
       'bad proof length'
     );
   });
