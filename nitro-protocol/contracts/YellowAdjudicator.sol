@@ -6,26 +6,26 @@ import './NitroAdjudicator.sol';
 import {NitroUtils} from './libraries/NitroUtils.sol';
 
 contract YellowAdjudicator is NitroAdjudicator {
-    struct BrokerLiability {
-        address broker;
-        address user;
+    struct Liability {
         address asset;
         uint256 amount;
     }
 
-    // TODO: rename
     struct SwapSpecs {
-        BrokerLiability liabilityOfBrokerA;
-        BrokerLiability liabilityOfBrokerB;
+        address brokerA;
+        address brokerB;
+        Liability[2][] swaps;
         uint64 swapSpecsFinalizationTimestamp; // guarantees swaps with equal amounts between same brokers are distinguishable
     }
 
-    // broker => user => asset => balance
-    mapping(address => mapping(address => mapping(address => uint256))) public deposits;
+    // broker => asset => balance
+    mapping(address => mapping(address => uint256)) public deposits;
 
     // keep track of performed swaps to prevent using the same signatures twice
     // REVIEW: hashedPostSwapSpecs => swapWasPerformed
     mapping(bytes32 => bool) internal _swapPerformed;
+
+    function test(SwapSpecs memory swapSpecs) external pure {}
 
     function swap(
         FixedPart memory fixedPart,
@@ -52,8 +52,8 @@ contract YellowAdjudicator is NitroAdjudicator {
 
         // check sigs on postSwapSpecs
         bytes32 postSwapSpecsHash = NitroUtils.hashState(fixedPart, postSwapSVP.variablePart);
-        address brokerA = postSwapSpecs.liabilityOfBrokerA.broker;
-        address brokerB = postSwapSpecs.liabilityOfBrokerB.broker;
+        address brokerA = postSwapSpecs.brokerA;
+        address brokerB = postSwapSpecs.brokerB;
 
         require(
             NitroUtils.isSignedBy(postSwapSpecsHash, postSwapSVP.sigs[0], brokerA),
@@ -69,34 +69,38 @@ contract YellowAdjudicator is NitroAdjudicator {
 
         // perform swap
         // REVIEW: how to improve readability?
-        address userA = postSwapSpecs.liabilityOfBrokerA.user;
-        address userB = postSwapSpecs.liabilityOfBrokerB.user;
 
-        address assetA = postSwapSpecs.liabilityOfBrokerA.asset;
-        address assetB = postSwapSpecs.liabilityOfBrokerB.asset;
+        for (uint256 i = 0; i < postSwapSpecs.swaps.length; i++) {
+            address assetA = postSwapSpecs.swaps[i][0].asset;
+            address assetB = postSwapSpecs.swaps[i][1].asset;
 
-        uint256 amountA = postSwapSpecs.liabilityOfBrokerA.amount;
-        uint256 amountB = postSwapSpecs.liabilityOfBrokerB.amount;
+            uint256 amountA = postSwapSpecs.swaps[i][0].amount;
+            uint256 amountB = postSwapSpecs.swaps[i][1].amount;
 
-        // alice - 55 WETH
-        // alice - 5 WBTC
+            // broker1 - 55 WETH
+            // broker1 - 5 WBTC
 
-        // bob - 10 WETH
-        // bob - 77 WBTC
+            // broker2 - 10 WETH
+            // broker2 - 77 WBTC
 
-        // swap: alice 2 WBTC
-        //       bob 15 WETH
+            // swap: broker1 2 WBTC
+            //       broker2 15 WETH
 
-        // alice - 40 WETH
-        // alice - 7 WBTC
+            // broker1 - 40 WETH
+            // broker1 - 7 WBTC
 
-        // bob - 25 WETH
-        // bob - 75 WBTC
+            // broker2 - 25 WETH
+            // broker2 - 75 WBTC
 
-        deposits[brokerA][userA][assetA] -= amountB;
-        deposits[brokerA][userA][assetB] += amountA;
+            deposits[brokerA][assetA] -= amountB;
+            deposits[brokerA][assetB] += amountA;
 
-        deposits[brokerB][userB][assetA] += amountB;
-        deposits[brokerB][userB][assetB] -= amountA;
+            deposits[brokerB][assetA] += amountB;
+            deposits[brokerB][assetB] -= amountA;
+        }
+    }
+
+    function setDeposit(address broker, address asset, uint256 amount) external {
+        deposits[broker][asset] = amount;
     }
 }

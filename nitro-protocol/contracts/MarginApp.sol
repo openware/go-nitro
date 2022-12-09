@@ -7,9 +7,18 @@ import './libraries/NitroUtils.sol';
 import './interfaces/INitroTypes.sol';
 import {ExitFormat as Outcome} from '@statechannels/exit-format/contracts/ExitFormat.sol';
 
+// NOTE: Attack:
+// Bob can submit a convenient candidate, when Alice in trouble (Way back machine attack)
+
+// Possible solutions:
+// 1: Alice does checkpoint periodically
+// 2: Alice hire a WatchTower, which replicates Alice's states,
+// and challenge in the case of challenge event and missing heartbeat
+
 /**
  * @dev The MarginApp contract complies with the ForceMoveApp interface and allows payments to be made virtually from Initiator to Receiver (participants[0] to participants[n+1], where n is the number of intermediaries).
  */
+// rename to VirtualMarginApp
 contract MarginApp is IForceMoveApp {
     enum AllocationIndices {
         Initiator,
@@ -34,14 +43,16 @@ contract MarginApp is IForceMoveApp {
         // 2+   margin change
         // 3+   final
 
-        uint256 nParticipants = fixedPart.participants.length;
-
-        // all states require unanimous consensus
-        require(NitroUtils.getClaimedSignersNum(candidate.signedBy) == nParticipants, '!unanimous');
+        uint8 nParticipants = uint8(fixedPart.participants.length);
 
         // states 0,1,3+:
 
         if (proof.length == 0) {
+            require(
+                NitroUtils.getClaimedSignersNum(candidate.signedBy) == nParticipants,
+                '!unanimous'
+            );
+
             if (candidate.variablePart.turnNum == 0) return; // prefund
             if (candidate.variablePart.turnNum == 1) return; // postfund
 
@@ -60,18 +71,26 @@ contract MarginApp is IForceMoveApp {
         if (proof.length == 1) {
             require(candidate.variablePart.turnNum >= 2, 'turnNum < 2; |proof|=1');
 
-            // previous state is unanimously signed
+            require(
+                NitroUtils.isClaimedSignedBy(candidate.signedBy, 0),
+                'redemption not signed by Leader'
+            );
+
+            require(
+                NitroUtils.isClaimedSignedBy(candidate.signedBy, nParticipants - 1),
+                'redemption not signed by Receiver'
+            );
+
+            // previous state if postfund
+            require(proof[0].variablePart.turnNum == 1, 'proof[0].turnNum != 1; |proof|=1');
+
+            // previous state is unanimously signed postfund
             require(
                 NitroUtils.getClaimedSignersNum(proof[0].signedBy) == fixedPart.participants.length,
                 '!unanimous proof; |proof|=1'
             );
 
-            // previous this state has bigger turn number
-            require(
-                candidate.variablePart.turnNum > proof[0].variablePart.turnNum,
-                'candidate turnNum not increased'
-            );
-
+            // TODO: check only 2 assets with only 1 destination each
             _requireSumHasNotChanged(
                 proof[0].variablePart.outcome[0].allocations,
                 candidate.variablePart.outcome[0].allocations,
@@ -81,6 +100,13 @@ contract MarginApp is IForceMoveApp {
             return;
         }
         revert('bad proof length');
+    }
+
+    function _requireCorrectAssets() internal pure {
+        // require(oldOutcome.length == 2 && newOutcome.length == 2, 'invalid number of assets');
+        // TODO: Add later getter and setter, for Fee and collateral currencies
+        // oldOutcome[0].asset == ASSET_FEE_ADDRESS &&
+        // newOutcome[0].asset == ASSET_COLLATERAL_ADDRESS,
     }
 
     function _requireSumHasNotChanged(
