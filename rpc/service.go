@@ -1,6 +1,8 @@
 package rpc
 
 import (
+	"errors"
+
 	"github.com/rs/zerolog"
 	"github.com/statechannels/go-nitro/client"
 	"github.com/statechannels/go-nitro/network"
@@ -14,13 +16,33 @@ import (
 type Service struct {
 	Logger zerolog.Logger
 
-	cli *client.Client
+	Client         *client.Client
+	NetworkService *network.Service
 }
 
-func NewService(cli *client.Client) *Service {
+func NewService(cli *client.Client, nts *network.Service) *Service {
 	s := &Service{
-		cli: cli,
+		Client:         cli,
+		NetworkService: nts,
 	}
+
+	go func() {
+		for {
+			peer, err := s.NetworkService.PollPeer()
+			if err != nil {
+				if errors.Is(err, network.ErrServiceClosed) {
+					s.Logger.Info().Msg("network service closed")
+
+					break
+				}
+
+				// TODO: handle error
+				s.Logger.Fatal().Err(err).Msg("failed to poll peer")
+			}
+
+			go s.HandlePeer(peer)
+		}
+	}()
 
 	return s
 }
@@ -29,10 +51,10 @@ func (s *Service) HandlePeer(p *network.Peer) {
 	network.RegisterRequestHandler(
 		p,
 		func(req *rpcproto.DirectFundRequest) (*rpcproto.DirectFundResponse, *netproto.Error) {
-			s.cli.Engine.ObjectiveRequestsFromAPI <- req.Params
+			s.Client.Engine.ObjectiveRequestsFromAPI <- req.Params
 
 			res := &rpcproto.DirectFundResponse{
-				Result: req.Params.Response(*s.cli.Address, s.cli.ChainId),
+				Result: req.Params.Response(*s.Client.Address, s.Client.ChainId),
 			}
 
 			return res, nil
@@ -45,7 +67,7 @@ func (s *Service) HandlePeer(p *network.Peer) {
 
 		for {
 			select {
-			case oid := <-s.cli.FailedObjectives():
+			case oid := <-s.Client.FailedObjectives():
 				p.SendMessage(
 					&rpcproto.ObjectiveFailed{
 						ObjectiveId: oid,
@@ -54,7 +76,7 @@ func (s *Service) HandlePeer(p *network.Peer) {
 				)
 
 			// TODO: hook into engine to send intermediate objective statuses
-			case oid := <-s.cli.CompletedObjectives():
+			case oid := <-s.Client.CompletedObjectives():
 				p.SendMessage(
 					&rpcproto.ObjectiveUpdated{
 						ObjectiveId: oid,
@@ -64,4 +86,8 @@ func (s *Service) HandlePeer(p *network.Peer) {
 			}
 		}
 	}()
+}
+
+func (s *Service) Close() {
+	s.NetworkService.Close()
 }

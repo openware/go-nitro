@@ -9,6 +9,8 @@ import (
 	"github.com/statechannels/go-nitro/network/transport"
 )
 
+// TODO: replace Poll methods (sub packages too) with data channel + error channel
+
 type Service struct {
 	Logger zerolog.Logger
 

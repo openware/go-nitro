@@ -1,12 +1,15 @@
-package transport
+package main
 
-import netproto "github.com/statechannels/go-nitro/network/protocol"
+import (
+	netproto "github.com/statechannels/go-nitro/network/protocol"
+	"github.com/statechannels/go-nitro/network/transport"
+)
 
 type natsConnection struct {
 	//
 }
 
-var _ Connection = (*natsConnection)(nil)
+var _ transport.Connection = (*natsConnection)(nil)
 
 func newNatsConnection() *natsConnection {
 	c := &natsConnection{
