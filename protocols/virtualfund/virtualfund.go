@@ -13,7 +13,6 @@ import (
 	"github.com/statechannels/go-nitro/channel/consensus_channel"
 	"github.com/statechannels/go-nitro/channel/state"
 	"github.com/statechannels/go-nitro/channel/state/outcome"
-
 	"github.com/statechannels/go-nitro/protocols"
 	"github.com/statechannels/go-nitro/types"
 )
@@ -728,12 +727,12 @@ func (o *Objective) updateLedgerWithGuarantee(ledgerConnection Connection, sk *[
 
 // ObjectiveRequest represents a request to create a new virtual funding objective.
 type ObjectiveRequest struct {
-	Intermediaries    []types.Address
-	CounterParty      types.Address
-	ChallengeDuration uint32
-	Outcome           outcome.Exit
-	Nonce             uint64
-	AppDefinition     types.Address
+	Intermediaries    []types.Address `json:"intermediaries"`
+	CounterParty      types.Address   `json:"counter_party"`
+	ChallengeDuration uint32          `json:"challenge_duration"`
+	Outcome           outcome.Exit    `json:"outcome"`
+	Nonce             uint64          `json:"nonce"`
+	AppDefinition     types.Address   `json:"app_definition"`
 }
 
 // Id returns the objective id for the request.
@@ -744,8 +743,8 @@ func (r ObjectiveRequest) Id(myAddress types.Address, chainId *big.Int) protocol
 
 // ObjectiveResponse is the type returned across the API in response to the ObjectiveRequest.
 type ObjectiveResponse struct {
-	Id        protocols.ObjectiveId
-	ChannelId types.Destination
+	Id        protocols.ObjectiveId `json:"id"`
+	ChannelId types.Destination     `json:"channel_id"`
 }
 
 // Response computes and returns the appropriate response from the request.
