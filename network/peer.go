@@ -36,28 +36,7 @@ func NewPeer(id uuid.UUID, con transport.Connection) *Peer {
 		Connection: con,
 	}
 
-	go func() {
-		for {
-			msg, err := p.Connection.Recv()
-			if err != nil {
-				if errors.Is(err, transport.ErrConnectionClosed) {
-					p.Logger.Info().Msg("connection closed")
-
-					p.dropRequests()
-
-					break
-				}
-
-				// TODO: handle error
-				p.Logger.Fatal().Err(err).Msg("failed to receive message")
-			}
-
-			// NOTE: we do not hande messages in a separate goroutine
-			// to ensure that messages are handled in the order they are received
-			// and to avoid inconsistencies in the state of the peer
-			p.handleMessage(msg, 0)
-		}
-	}()
+	go p.handleMessages()
 
 	return p
 }
@@ -244,6 +223,29 @@ func UnregisterResponseHandler[
 ](p *Peer) {
 	UnregisterMessageHandler[Res](p)
 	UnregisterErrorHandler[Req](p)
+}
+
+func (p *Peer) handleMessages() {
+	for {
+		msg, err := p.Connection.Recv()
+		if err != nil {
+			if errors.Is(err, transport.ErrConnectionClosed) {
+				p.Logger.Info().Msg("connection closed")
+
+				p.dropRequests()
+
+				break
+			}
+
+			// TODO: handle error
+			p.Logger.Fatal().Err(err).Msg("failed to receive message")
+		}
+
+		// NOTE: we do not hande messages in a separate goroutine
+		// to ensure that messages are handled in the order they are received
+		// and to avoid inconsistencies in the state of the peer
+		p.handleMessage(msg, 0)
+	}
 }
 
 func (p *Peer) SendMessage(msg netproto.Message) {
