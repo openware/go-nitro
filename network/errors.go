@@ -8,7 +8,7 @@ var (
 	// Service
 	ErrServiceClosed = internal.NewError("service closed")
 
-	// Peer
+	// NetworkServiceConnection
 	ErrPeerClosed = internal.NewError("peer closed")
 
 	// Protocol

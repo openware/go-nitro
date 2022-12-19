@@ -14,7 +14,7 @@ import (
 
 // TODO: use mutexes for both maps and logs (removing sync.Map usage)
 
-type Peer struct {
+type NetworkServiceConnection struct {
 	Logger zerolog.Logger
 
 	Id uuid.UUID
@@ -29,8 +29,8 @@ type Peer struct {
 	responseChs    sync.Map
 }
 
-func NewPeer(id uuid.UUID, con transport.Connection) *Peer {
-	p := &Peer{
+func NewNetworkServiceConnection(id uuid.UUID, con transport.Connection) *NetworkServiceConnection {
+	p := &NetworkServiceConnection{
 		Id: id,
 
 		Connection: con,
@@ -41,7 +41,7 @@ func NewPeer(id uuid.UUID, con transport.Connection) *Peer {
 	return p
 }
 
-func RegisterErrorHandler[T netproto.Message](p *Peer, handle func(*netproto.Error, T)) {
+func RegisterErrorHandler[T netproto.Message](p *NetworkServiceConnection, handle func(*netproto.Error, T)) {
 	var msg T
 
 	p.errorHandlers.Store(msg.Type(), func(errMsg *netproto.ErrorMessage) {
@@ -58,7 +58,7 @@ func RegisterErrorHandler[T netproto.Message](p *Peer, handle func(*netproto.Err
 	p.Logger.Trace().Str("message_type", msg.Type()).Msg("registered error handler")
 }
 
-func RegisterErrorHandlerOnce[T netproto.Message](p *Peer, handle func(*netproto.Error, T)) {
+func RegisterErrorHandlerOnce[T netproto.Message](p *NetworkServiceConnection, handle func(*netproto.Error, T)) {
 	RegisterErrorHandler(p, func(err *netproto.Error, msg T) {
 		UnregisterErrorHandler[T](p)
 
@@ -66,7 +66,7 @@ func RegisterErrorHandlerOnce[T netproto.Message](p *Peer, handle func(*netproto
 	})
 }
 
-func UnregisterErrorHandler[T netproto.Message](p *Peer) {
+func UnregisterErrorHandler[T netproto.Message](p *NetworkServiceConnection) {
 	var msg T
 
 	p.errorHandlers.Delete(msg.Type())
@@ -75,7 +75,7 @@ func UnregisterErrorHandler[T netproto.Message](p *Peer) {
 }
 
 func RegisterMessageHandler[T netproto.Message](
-	p *Peer,
+	p *NetworkServiceConnection,
 	handle func(T) *netproto.Error,
 	handleErr func(*netproto.Error, T),
 ) {
@@ -105,7 +105,7 @@ func RegisterMessageHandler[T netproto.Message](
 }
 
 func RegisterMessageHandlerOnce[T netproto.Message](
-	p *Peer,
+	p *NetworkServiceConnection,
 	handle func(T) *netproto.Error,
 	handleErr func(*netproto.Error, T),
 ) {
@@ -122,7 +122,7 @@ func RegisterMessageHandlerOnce[T netproto.Message](
 	)
 }
 
-func UnregisterMessageHandler[T netproto.Message](p *Peer) {
+func UnregisterMessageHandler[T netproto.Message](p *NetworkServiceConnection) {
 	var msg T
 
 	p.messageHandlers.Delete(msg.Type())
@@ -133,7 +133,7 @@ func UnregisterMessageHandler[T netproto.Message](p *Peer) {
 func RegisterRequestHandler[
 	Req netproto.RequestMessage,
 	Res netproto.ResponseMessage,
-](p *Peer, handle func(Req) (Res, *netproto.Error), handleErr func(*netproto.Error, Req)) {
+](p *NetworkServiceConnection, handle func(Req) (Res, *netproto.Error), handleErr func(*netproto.Error, Req)) {
 	RegisterMessageHandler(
 		p,
 		func(req Req) *netproto.Error {
@@ -153,7 +153,7 @@ func RegisterRequestHandler[
 func RegisterRequestHandlerOnce[
 	Req netproto.RequestMessage,
 	Res netproto.ResponseMessage,
-](p *Peer, handle func(Req) (Res, *netproto.Error), handleErr func(*netproto.Error, Req)) {
+](p *NetworkServiceConnection, handle func(Req) (Res, *netproto.Error), handleErr func(*netproto.Error, Req)) {
 	RegisterRequestHandler(
 		p,
 		func(req Req) (Res, *netproto.Error) {
@@ -167,12 +167,12 @@ func RegisterRequestHandlerOnce[
 	)
 }
 
-func UnregisterRequestHandler[Req netproto.RequestMessage](p *Peer) {
+func UnregisterRequestHandler[Req netproto.RequestMessage](p *NetworkServiceConnection) {
 	UnregisterMessageHandler[Req](p)
 }
 
 func RegisterResponseHandler[Res netproto.ResponseMessage, Req netproto.RequestMessage](
-	p *Peer,
+	p *NetworkServiceConnection,
 	handleReqErr func(*netproto.Error, Req),
 	handle func(Res, Req) *netproto.Error,
 ) {
@@ -199,7 +199,7 @@ func RegisterResponseHandler[Res netproto.ResponseMessage, Req netproto.RequestM
 func RegisterResponseHandlerOnce[
 	Res netproto.ResponseMessage,
 	Req netproto.RequestMessage,
-](p *Peer, handleReqErr func(*netproto.Error, Req), handle func(Res, Req) *netproto.Error) {
+](p *NetworkServiceConnection, handleReqErr func(*netproto.Error, Req), handle func(Res, Req) *netproto.Error) {
 	RegisterResponseHandler(
 		p,
 		func(err *netproto.Error, req Req) {
@@ -220,12 +220,12 @@ func RegisterResponseHandlerOnce[
 func UnregisterResponseHandler[
 	Res netproto.ResponseMessage,
 	Req netproto.RequestMessage,
-](p *Peer) {
+](p *NetworkServiceConnection) {
 	UnregisterMessageHandler[Res](p)
 	UnregisterErrorHandler[Req](p)
 }
 
-func (p *Peer) handleMessages() {
+func (p *NetworkServiceConnection) handleMessages() {
 	for {
 		msg, err := p.Connection.Recv()
 		if err != nil {
@@ -248,7 +248,7 @@ func (p *Peer) handleMessages() {
 	}
 }
 
-func (p *Peer) SendMessage(msg netproto.Message) {
+func (p *NetworkServiceConnection) SendMessage(msg netproto.Message) {
 	p.Connection.Send(msg)
 
 	p.Logger.Trace().
@@ -257,14 +257,14 @@ func (p *Peer) SendMessage(msg netproto.Message) {
 		Msg("sent message")
 }
 
-func (p *Peer) SendError(err *netproto.Error, msg netproto.Message) {
+func (p *NetworkServiceConnection) SendError(err *netproto.Error, msg netproto.Message) {
 	p.SendMessage(&netproto.ErrorMessage{
 		Error:   err,
 		Message: msg,
 	})
 }
 
-func (p *Peer) SendRequest(req netproto.RequestMessage) (netproto.ResponseMessage, error) {
+func (p *NetworkServiceConnection) SendRequest(req netproto.RequestMessage) (netproto.ResponseMessage, error) {
 	req.SetId(uuid.New())
 
 	rid := req.Id()
@@ -294,7 +294,7 @@ func (p *Peer) SendRequest(req netproto.RequestMessage) (netproto.ResponseMessag
 func SendRequest[
 	Req netproto.RequestMessage,
 	Res netproto.ResponseMessage,
-](p *Peer, req Req) (Res, error) {
+](p *NetworkServiceConnection, req Req) (Res, error) {
 	res, err := p.SendRequest(req)
 	if err != nil {
 		return *new(Res), err
@@ -316,7 +316,7 @@ func SendRequestWithHandler[
 	Req netproto.RequestMessage,
 	Res netproto.ResponseMessage,
 ](
-	p *Peer,
+	p *NetworkServiceConnection,
 	req Req,
 	handleErr func(*netproto.Error, Req),
 	handle func(Res, Req) *netproto.Error,
@@ -326,7 +326,7 @@ func SendRequestWithHandler[
 	return SendRequest[Req, Res](p, req)
 }
 
-func (p *Peer) GetRequest(rid netproto.RequestId) (netproto.RequestMessage, bool) {
+func (p *NetworkServiceConnection) GetRequest(rid netproto.RequestId) (netproto.RequestMessage, bool) {
 	req, ok := p.requests.Load(rid)
 	if !ok {
 		return nil, false
@@ -335,7 +335,7 @@ func (p *Peer) GetRequest(rid netproto.RequestId) (netproto.RequestMessage, bool
 	return req.(netproto.RequestMessage), true
 }
 
-func GetRequest[Req netproto.RequestMessage](p *Peer, rid netproto.RequestId) (Req, bool) {
+func GetRequest[Req netproto.RequestMessage](p *NetworkServiceConnection, rid netproto.RequestId) (Req, bool) {
 	r, ok := p.GetRequest(rid)
 	if !ok {
 		return *new(Req), false
@@ -349,7 +349,7 @@ func GetRequest[Req netproto.RequestMessage](p *Peer, rid netproto.RequestId) (R
 	return req, true
 }
 
-func (p *Peer) failRequest(rid netproto.RequestId, err error) bool {
+func (p *NetworkServiceConnection) failRequest(rid netproto.RequestId, err error) bool {
 	errCh, ok := p.responseErrChs.Load(rid)
 	if ok {
 		p.responseChs.Delete(rid)
@@ -360,7 +360,7 @@ func (p *Peer) failRequest(rid netproto.RequestId, err error) bool {
 	return ok
 }
 
-func (p *Peer) completeRequest(rid netproto.RequestId, res netproto.ResponseMessage) bool {
+func (p *NetworkServiceConnection) completeRequest(rid netproto.RequestId, res netproto.ResponseMessage) bool {
 	resCh, ok := p.responseChs.Load(rid)
 	if ok {
 		resCh.(chan netproto.ResponseMessage) <- res
@@ -369,7 +369,7 @@ func (p *Peer) completeRequest(rid netproto.RequestId, res netproto.ResponseMess
 	return ok
 }
 
-func (p *Peer) dropRequests() {
+func (p *NetworkServiceConnection) dropRequests() {
 	p.responseErrChs.Range(func(key, value interface{}) bool {
 		value.(chan error) <- ErrPeerClosed
 
@@ -377,13 +377,13 @@ func (p *Peer) dropRequests() {
 	})
 }
 
-func (p *Peer) SendResponse(rid netproto.RequestId, res netproto.ResponseMessage) {
+func (p *NetworkServiceConnection) SendResponse(rid netproto.RequestId, res netproto.ResponseMessage) {
 	res.SetRequestId(rid)
 
 	p.SendMessage(res)
 }
 
-func (p *Peer) handleMessage(msg netproto.Message, retryCount uint) {
+func (p *NetworkServiceConnection) handleMessage(msg netproto.Message, retryCount uint) {
 	p.Logger.Trace().
 		Str("message_type", msg.Type()).
 		Interface("message_data", msg).
@@ -440,6 +440,6 @@ func (p *Peer) handleMessage(msg netproto.Message, retryCount uint) {
 	}
 }
 
-func (p *Peer) Close() {
+func (p *NetworkServiceConnection) Close() {
 	p.Connection.Close()
 }

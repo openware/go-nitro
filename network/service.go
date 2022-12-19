@@ -25,7 +25,7 @@ func NewService(trp transport.Transport) *Service {
 	return s
 }
 
-func (s *Service) PollPeer() (*Peer, error) {
+func (s *Service) PollPeer() (*NetworkServiceConnection, error) {
 	con, err := s.Transport.PollConnection()
 	if err != nil {
 		if errors.Is(err, transport.ErrTransportClosed) {
@@ -37,7 +37,7 @@ func (s *Service) PollPeer() (*Peer, error) {
 		return nil, err
 	}
 
-	p := NewPeer(uuid.New(), con)
+	p := NewNetworkServiceConnection(uuid.New(), con)
 	p.Logger = s.Logger.With().Str("peer", p.Id.String()).Logger()
 
 	s.Logger.Info().Str("peer", p.Id.String()).Msg("peer connected")

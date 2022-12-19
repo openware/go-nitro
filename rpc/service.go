@@ -47,7 +47,7 @@ func NewService(cli *client.Client, nts *network.Service) *Service {
 	return s
 }
 
-func (s *Service) HandlePeer(p *network.Peer) {
+func (s *Service) HandlePeer(p *network.NetworkServiceConnection) {
 	network.RegisterRequestHandler(
 		p,
 		func(req *rpcproto.DirectFundRequest) (*rpcproto.DirectFundResponse, *netproto.Error) {
