@@ -2,32 +2,30 @@ package transport
 
 import (
 	"sync"
-
-	netproto "github.com/statechannels/go-nitro/network/protocol"
 )
 
 type chanConnection struct {
 	mu     sync.Mutex
-	sendCh chan netproto.Message
-	recvCh chan netproto.Message
+	sendCh chan []byte
+	recvCh chan []byte
 }
 
 var _ Connection = (*chanConnection)(nil)
 
 func newChanConnection() *chanConnection {
 	con := &chanConnection{
-		sendCh: make(chan netproto.Message),
-		recvCh: make(chan netproto.Message),
+		sendCh: make(chan []byte),
+		recvCh: make(chan []byte),
 	}
 
 	return con
 }
 
-func (c *chanConnection) Send(msg netproto.Message) {
-	c.sendCh <- msg
+func (c *chanConnection) Send(msgType string, data []byte) {
+	c.sendCh <- data
 }
 
-func (c *chanConnection) Recv() (netproto.Message, error) {
+func (c *chanConnection) Recv() ([]byte, error) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 

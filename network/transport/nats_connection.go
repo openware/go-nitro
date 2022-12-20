@@ -3,13 +3,10 @@ package transport
 import (
 	"github.com/nats-io/nats.go"
 	"github.com/rs/zerolog/log"
-	netproto "github.com/statechannels/go-nitro/network/protocol"
 )
 
 type natsConnection struct {
 	nc *nats.Conn
-
-	pubTopicName string
 
 	subTopicName     string
 	subChannel       chan *nats.Msg
@@ -23,7 +20,6 @@ func NewNatsConnection(connectionUrl string, pubTopicName string, subTopicName s
 	natsConnection := &natsConnection{
 		nc:           nc,
 		subTopicName: subTopicName,
-		pubTopicName: pubTopicName,
 		subChannel:   subChannel,
 	}
 
@@ -42,15 +38,16 @@ func (c *natsConnection) subscribeWithChannel() error {
 	return nil
 }
 
-func (c *natsConnection) Send(msg netproto.Message) {
-	err := c.nc.Publish(c.pubTopicName, []byte(msg.Type()))
+func (c *natsConnection) Send(t string, data []byte) {
+	err := c.nc.Publish(t, data)
 	if err != nil {
-		log.Error().Err(err).Msgf("failed to send message on topic: %s. msg: %s", c.pubTopicName, msg)
+		log.Error().Err(err).Msgf("failed to send message on topic: %s. msg: %s", t, string(data))
 	}
 }
 
-func (c *natsConnection) Recv() (netproto.Message, error) {
+func (c *natsConnection) Recv() ([]byte, error) {
 	// TODO: either store data into the natsConnection and get event by event or dirctly subscribe to channel
+	return nil, nil
 }
 
 func (c *natsConnection) Close() {

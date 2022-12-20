@@ -2,7 +2,6 @@ package main
 
 import (
 	"io"
-	"log"
 	"math/rand"
 	"os"
 	"time"
@@ -19,7 +18,6 @@ import (
 	netproto "github.com/statechannels/go-nitro/network/protocol"
 	"github.com/statechannels/go-nitro/network/transport"
 	"github.com/statechannels/go-nitro/protocols/directfund"
-	"github.com/statechannels/go-nitro/rpc"
 	rpcproto "github.com/statechannels/go-nitro/rpc/protocol"
 	"github.com/statechannels/go-nitro/types"
 )
@@ -88,13 +86,16 @@ func nitroService(logger zerolog.Logger) {
 	_ = clientI
 
 	// Setup A network service using transport from global variables (in global only because we currently use a mock transport)
-	ntsA := network.NewService(trpA)
+	conA, err := trpA.PollConnection()
+	if err != nil {
+		logger.Fatal().Msg(err.Error())
+	}
+	ntsA := network.NewNetworkService(conA, nil)
 	ntsA.Logger = logger.With().Str("scope", "NETW ").Logger()
 
-	// Setup A RPC service
-	rpcA := rpc.NewService(&clientA, ntsA)
-	rpcA.Logger = logger.With().Str("scope", "RPC  ").Logger()
-	defer rpcA.Close()
+	ntsA.RegisterRequestHandler(rpcproto.DirectFundRequestMethod, func(m *netproto.Message) {
+		clientA.Engine.ObjectiveRequestsFromAPI <- m.Args.(directfund.ObjectiveRequest)
+	})
 
 	// TODO: complete example with B and I clients interactions (wait their own objectives, etc.)
 
@@ -116,7 +117,12 @@ func marginService(logger zerolog.Logger) {
 	trp.Connect(trpA, 100*time.Millisecond, 1000*time.Millisecond)
 
 	// Setup network service
-	nts := network.NewService(trp)
+	con, err := trp.PollConnection()
+	if err != nil {
+		logger.Fatal().Msg(err.Error())
+	}
+
+	nts := network.NewNetworkService(con, nil)
 	nts.Logger = logger.With().Str("scope", "NETW ").Logger()
 	defer nts.Close()
 
@@ -124,60 +130,30 @@ func marginService(logger zerolog.Logger) {
 	// instead, that will add helper methods with the same behavior
 	// This would require external micro services to have a dependency on the rpc service, which may not be desirable
 
-	// Poll peers
-	for {
-		// Got a peer
-		peer, err := nts.PollPeer()
-		if err != nil {
-			log.Fatal(err)
-		}
+	nts.RegisterResponseHandler(rpcproto.DirectFundRequestMethod, func(m *netproto.Message) {
+		logger.Info().Msgf("Objective updated: %v", *m)
+	})
 
-		// Start a new goroutine to handle the peer
-		go func() {
-			// Register objective failed handler
-			network.RegisterMessageHandler(
-				peer,
-				func(msg *rpcproto.ObjectiveFailed) *netproto.Error {
-					logger.Error().Msgf("Objective failed: %v", msg)
+	nts.RegisterErrorHandler(rpcproto.DirectFundRequestMethod, func(m *netproto.Message) {
+		logger.Error().Msgf("Objective failed: %v", *m)
+	})
 
-					return nil
-				},
-				nil,
-			)
+	// Start a new goroutine to handle the peer
+	// Register objective failed handler
 
-			// Register objective updated handler
-			network.RegisterMessageHandler(
-				peer,
-				func(msg *rpcproto.ObjectiveUpdated) *netproto.Error {
-					logger.Info().Msgf("Objective updated: %v", msg)
-
-					return nil
-				},
-				nil,
-			)
-
-			// Send direct fund request
-			res, err := peer.SendRequest(
-				&rpcproto.DirectFundRequest{
-					Params: directfund.ObjectiveRequest{
-						CounterParty:      irene.Address(),
-						ChallengeDuration: 0,
-						Outcome:           testdata.Outcomes.Create(alice.Address(), irene.Address(), 100, 100, types.Address{}),
-						AppDefinition:     chainServiceA.GetConsensusAppAddress(),
-						// Appdata implicitly zero
-						Nonce: rand.Uint64(),
-					},
-				},
-			)
-			// Check for request error
-			if err != nil {
-				logger.Fatal().Err(err).Msg("Direct fund request failed")
-			}
-
-			// Log response
-			logger.Info().Msgf("Direct fund response received: %v", res)
-		}()
-	}
+	// Send direct fund request
+	nts.SendMessage(
+		rpcproto.CreateDirectFundRequest(
+			&directfund.ObjectiveRequest{
+				CounterParty:      irene.Address(),
+				ChallengeDuration: 0,
+				Outcome:           testdata.Outcomes.Create(alice.Address(), irene.Address(), 100, 100, types.Address{}),
+				AppDefinition:     chainServiceA.GetConsensusAppAddress(),
+				// Appdata implicitly zero
+				Nonce: rand.Uint64(),
+			},
+		),
+	)
 }
 
 func main() {
