@@ -101,6 +101,14 @@ func nitroService(logger zerolog.Logger) {
 			logger.Fatal().Msg("unexpected empty args for direct funding method")
 			return
 		}
+
+		for i := 0; i < len(m.Args); i++ {
+			res := m.Args[0].(directfund.ObjectiveRequest)
+
+			// Should be fine?
+			logger.Info().Msgf("Objective Request: %v", res)
+			clientA.Engine.ObjectiveRequestsFromAPI <- res
+		}
 		r := m.Args[0].(map[string]interface{})
 		exit := outcome.Exit{}
 
@@ -127,6 +135,7 @@ func nitroService(logger zerolog.Logger) {
 	})
 
 	// TODO: complete example with B and I clients interactions (wait their own objectives, etc.)
+	ntsA.RegisterResponseHandler()
 
 	// Wait forever
 	select {}

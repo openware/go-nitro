@@ -1,17 +1,14 @@
 package transport
 
-import "github.com/nats-io/nats.go"
-
 type NatsTransport struct {
 	connection Connection
 }
 
 var _ Transport = (*NatsTransport)(nil)
 
-func NewNatsTransport(connectionUrl string, pubTopicName string) (*NatsTransport, error) {
+func NewNatsTransport(connectionUrl string, pubTopicNames []string) (*NatsTransport, error) {
 	// wouldn't it be better to get messaged directly into the channel?
-	subChannel := make(chan *nats.Msg)
-	natsConnection, err := NewNatsConnection(connectionUrl, pubTopicName, subChannel)
+	natsConnection, err := NewNatsConnection(connectionUrl, pubTopicNames)
 	if err != nil {
 		return nil, err
 	}

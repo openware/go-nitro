@@ -1,79 +1,62 @@
 package transport
 
 import (
+	"sync"
+	"time"
+
 	"github.com/nats-io/nats.go"
 	"github.com/rs/zerolog/log"
 )
 
-type node struct {
-	prev *node
-	next *node
-
-	data *nats.Msg
-}
-
-// TODO: maybe we need mutex
-type queue struct {
-	head *node
-	tail *node
-}
-
-func (n *queue) enqueue(data *nats.Msg) {
-	newNode := &node{
-		next: nil,
-		prev: n.tail,
-		data: data,
-	}
-	n.tail = newNode
-}
-
-func (n *queue) dequeue() *node {
-	val := n.head
-	n.head = val.next
-
-	if val.next == nil {
-		n.tail = nil
-	}
-
-	return val
-}
-
 type natsConnection struct {
 	nc *nats.Conn
 
-	subTopicName     string //TODO: convert to array of string, listen to those topics on start
-	subChannel       chan *nats.Msg
-	natsSubscription *nats.Subscription
-	queue            *queue
+	subTopicNames     []string
+	msgChannel        chan *nats.Msg
+	mutex             sync.Mutex
+	natsSubscriptions []*nats.Subscription
 }
 
-func NewNatsConnection(connectionUrl string, subTopicName string, subChannel chan *nats.Msg) (*natsConnection, error) {
+// TODO: discuss maybe we'd better give *nats.Conn
+func NewNatsConnection(connectionUrl string, subTopicNames []string) (*natsConnection, error) {
 	nc, err := nats.Connect(connectionUrl)
-	natsConnection := &natsConnection{
-		nc:           nc,
-		subTopicName: subTopicName,
-		subChannel:   subChannel,
-	}
-	go natsConnection.handleIncomingMessages()
-	err = natsConnection.subscribeWithChannel()
-
-	return natsConnection, err
-}
-
-func (c *natsConnection) handleIncomingMessages() {
-	for msg := range c.subChannel {
-		c.queue.enqueue(msg)
-	}
-}
-
-func (c *natsConnection) subscribeWithChannel() error {
-	sub, err := c.nc.ChanSubscribe(c.subTopicName, c.subChannel)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
-	c.natsSubscription = sub
-	return nil
+	natsConnection := &natsConnection{
+		nc:                nc,
+		subTopicNames:     subTopicNames,
+		msgChannel:        make(chan *nats.Msg, 128),
+		natsSubscriptions: make([]*nats.Subscription, len(subTopicNames)),
+		mutex:             sync.Mutex{},
+	}
+	natsConnection.subscribeToTopics()
+
+	return natsConnection, nil
+}
+
+func (c *natsConnection) subscribeToTopics() {
+	for _, topic := range c.subTopicNames {
+		sub, err := c.subscribeToTopic(topic, 0)
+		if err != nil {
+			log.Error().Err(err).Msgf("failed to connect on topic: %s", topic)
+		} else {
+			c.mutex.Lock()
+			c.natsSubscriptions = append(c.natsSubscriptions, sub)
+		}
+	}
+}
+
+func (c *natsConnection) subscribeToTopic(topic string, try int32) (*nats.Subscription, error) {
+	sub, err := c.nc.ChanSubscribe(topic, c.msgChannel)
+
+	if err != nil && try < 3 {
+		time.Sleep(time.Millisecond * 100)
+		return c.subscribeToTopic(topic, try+1)
+	}
+
+	return sub, nil
 }
 
 func (c *natsConnection) Send(t string, data []byte) {
@@ -84,22 +67,29 @@ func (c *natsConnection) Send(t string, data []byte) {
 }
 
 func (c *natsConnection) Recv() ([]byte, error) {
-	msg := c.queue.dequeue()
-	if msg == nil {
-		if c.natsSubscription == nil {
-			return nil, ErrConnectionClosed
-		}
+	msg := <-c.msgChannel
 
-		return nil, nil
+	return msg.Data, nil
+}
+
+func (c *natsConnection) unsubscribeFromTopics() {
+	for _, sub := range c.natsSubscriptions {
+		err := c.unsubscribeFromTopic(sub, 0)
+		if err != nil {
+			log.Error().Err(err).Msgf("failed to unsubscribe from a topic: %s", sub.Subject)
+		}
 	}
-	return msg.data.Data, nil
+}
+
+func (c *natsConnection) unsubscribeFromTopic(sub *nats.Subscription, try int32) error {
+	err := sub.Unsubscribe()
+	if err != nil && try < 3 {
+		return c.unsubscribeFromTopic(sub, try+1)
+	}
+	return nil
 }
 
 func (c *natsConnection) Close() {
-	err := c.natsSubscription.Unsubscribe()
-	if err != nil {
-		log.Error().Err(err).Msgf("failed to unsubscribe from topic: %s.", c.subTopicName)
-	}
-	close(c.subChannel)
-	// TODO: verify that we don't close nats connection
+	c.unsubscribeFromTopics()
+	close(c.msgChannel)
 }

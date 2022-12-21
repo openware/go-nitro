@@ -114,22 +114,30 @@ func (p *NetworkService) SendMessage(msg *netproto.Message) {
 }
 
 // Maybe return func(*netproto.Message). if it doesn't exist it will just return nil
-func (p *NetworkService) getHandler(msg *netproto.Message) (any, bool) {
+func (p *NetworkService) getHandler(msg *netproto.Message) func(*netproto.Message) {
 	switch msg.Type {
 	case netproto.TypeRequest:
-		return p.handlerRequest.Load(msg.Method)
+		function, ok := p.handlerRequest.Load(msg.Method)
+		if ok {
+			return function.(func(*netproto.Message))
+		}
 
 	case netproto.TypeResponse:
-		return p.handlerResponse.Load(msg.Method)
+		function, ok := p.handlerResponse.Load(msg.Method)
+		if ok {
+			return function.(func(*netproto.Message))
+		}
 
 	case netproto.TypeError:
-		return p.handlerError.Load(msg.Method)
-
+		function, ok := p.handlerError.Load(msg.Method)
+		if ok {
+			return function.(func(*netproto.Message))
+		}
 	}
 	// TODO: case handlerPublicEvent
 	// TODO: case handlerPrivateEvent
 
-	return nil, false
+	return nil
 }
 
 // TODO: I feel like this should return error
@@ -139,9 +147,9 @@ func (p *NetworkService) handleMessage(msg *netproto.Message) {
 		Str("method", msg.Method).
 		Msg("received message")
 
-	h, ok := p.getHandler(msg)
+	h := p.getHandler(msg)
 
-	if !ok {
+	if h == nil {
 		p.Logger.Error().
 			Str("msg_type", netproto.TypeStr(msg.Type)).
 			Str("method", msg.Method).
@@ -149,7 +157,7 @@ func (p *NetworkService) handleMessage(msg *netproto.Message) {
 		return
 	}
 
-	h.(func(*netproto.Message))(msg)
+	h(msg)
 }
 
 func (p *NetworkService) Close() {
