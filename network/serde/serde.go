@@ -15,14 +15,6 @@ type Deserializer interface {
 	Deserialize([]byte) (*netproto.Message, error)
 }
 
-// JSON RPC example:
-//
-// payload = {
-// 	"method": method,
-// 	"params": [args],
-// 	"jsonrpc": "2.0",
-// 	"id": 1,
-// }
 
 // JSON array RPC:
 //

@@ -16,7 +16,7 @@ type Message struct {
 	Type      MessageType
 	RequestId uint64
 	Method    string
-	Args      interface{}
+	Args      []interface{}
 }
 
 func TypeStr(t MessageType) string {

@@ -23,4 +23,4 @@ artifacts
 
 nitro-protocol/hardhat-network-output.log
 
-site
+site/.idea

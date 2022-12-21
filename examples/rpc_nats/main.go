@@ -94,7 +94,11 @@ func nitroService(logger zerolog.Logger) {
 	ntsA.Logger = logger.With().Str("scope", "NETW ").Logger()
 
 	ntsA.RegisterRequestHandler(rpcproto.DirectFundRequestMethod, func(m *netproto.Message) {
-		clientA.Engine.ObjectiveRequestsFromAPI <- m.Args.(directfund.ObjectiveRequest)
+		if len(m.Args) < 1 {
+			logger.Fatal().Msg("unexpected empty args for direct funding method")
+			return
+		}
+		clientA.Engine.ObjectiveRequestsFromAPI <- m.Args[0].(directfund.ObjectiveRequest)
 	})
 
 	// TODO: complete example with B and I clients interactions (wait their own objectives, etc.)

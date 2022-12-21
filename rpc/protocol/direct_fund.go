@@ -14,7 +14,7 @@ func CreateDirectFundRequest(args *directfund.ObjectiveRequest) *netproto.Messag
 		Type:      netproto.TypeRequest,
 		RequestId: rand.Uint64(),
 		Method:    DirectFundRequestMethod,
-		Args:      *args,
+		Args:      []interface{}{*args},
 	}
 }
 
@@ -23,6 +23,6 @@ func CreateDirectFundResponse(reqId uint64, args *directfund.ObjectiveResponse) 
 		Type:      netproto.TypeResponse,
 		RequestId: reqId,
 		Method:    DirectFundRequestMethod,
-		Args:      *args,
+		Args:      []interface{}{*args},
 	}
 }
