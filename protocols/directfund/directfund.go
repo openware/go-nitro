@@ -445,12 +445,12 @@ func IsDirectFundObjective(id protocols.ObjectiveId) bool {
 
 // ObjectiveRequest represents a request to create a new direct funding objective.
 type ObjectiveRequest struct {
-	CounterParty      types.Address
-	ChallengeDuration uint32
-	Outcome           outcome.Exit
-	AppDefinition     types.Address
-	AppData           types.Bytes
-	Nonce             uint64
+	CounterParty      types.Address `json:"counter_party"`
+	ChallengeDuration uint32        `json:"challenge_duration"`
+	Outcome           outcome.Exit  `json:"outcome"`
+	AppDefinition     types.Address `json:"app_definition"`
+	AppData           types.Bytes   `json:"app_data"`
+	Nonce             uint64        `json:"nonce"`
 }
 
 // Id returns the objective id for the request.

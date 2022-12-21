@@ -14,8 +14,3 @@ type Serializer interface {
 type Deserializer interface {
 	Deserialize([]byte) (*netproto.Message, error)
 }
-
-
-// JSON array RPC:
-//
-// [type, request_id, method, arguments]

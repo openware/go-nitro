@@ -6,7 +6,9 @@ import (
 	"os"
 	"time"
 
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/rs/zerolog"
+	"github.com/statechannels/go-nitro/channel/state/outcome"
 	"github.com/statechannels/go-nitro/client"
 	"github.com/statechannels/go-nitro/client/engine"
 	"github.com/statechannels/go-nitro/client/engine/chainservice"
@@ -16,6 +18,7 @@ import (
 	"github.com/statechannels/go-nitro/internal/testdata"
 	"github.com/statechannels/go-nitro/network"
 	netproto "github.com/statechannels/go-nitro/network/protocol"
+	"github.com/statechannels/go-nitro/network/serde"
 	"github.com/statechannels/go-nitro/network/transport"
 	"github.com/statechannels/go-nitro/protocols/directfund"
 	rpcproto "github.com/statechannels/go-nitro/rpc/protocol"
@@ -90,7 +93,7 @@ func nitroService(logger zerolog.Logger) {
 	if err != nil {
 		logger.Fatal().Msg(err.Error())
 	}
-	ntsA := network.NewNetworkService(conA, nil)
+	ntsA := network.NewNetworkService(conA, &serde.JsonRpc{})
 	ntsA.Logger = logger.With().Str("scope", "NETW ").Logger()
 
 	ntsA.RegisterRequestHandler(rpcproto.DirectFundRequestMethod, func(m *netproto.Message) {
@@ -98,7 +101,29 @@ func nitroService(logger zerolog.Logger) {
 			logger.Fatal().Msg("unexpected empty args for direct funding method")
 			return
 		}
-		clientA.Engine.ObjectiveRequestsFromAPI <- m.Args[0].(directfund.ObjectiveRequest)
+		r := m.Args[0].(map[string]interface{})
+		exit := outcome.Exit{}
+
+		for _, o := range r["outcome"].([]interface{}) {
+			d := o.(map[string]interface{})
+			exit = append(exit, outcome.SingleAssetExit{
+				Asset: common.HexToAddress(d["asset"].(string)),
+				//FIXME: Metadata: d["metadata"].([]byte),
+				//FIXME: Allocations
+			})
+		}
+
+		or := directfund.ObjectiveRequest{
+			CounterParty:      common.HexToAddress(r["counter_party"].(string)),
+			ChallengeDuration: uint32(r["challenge_duration"].(float64)),
+			Outcome:           exit,
+			AppDefinition:     common.HexToAddress(r["app_definition"].(string)),
+			// FIXME: AppData:           r["app_data"].([]byte),
+			Nonce: uint64(r["nonce"].(float64)),
+		}
+
+		logger.Info().Msgf("Objective Request: %v", r)
+		clientA.Engine.ObjectiveRequestsFromAPI <- or
 	})
 
 	// TODO: complete example with B and I clients interactions (wait their own objectives, etc.)
@@ -126,7 +151,7 @@ func marginService(logger zerolog.Logger) {
 		logger.Fatal().Msg(err.Error())
 	}
 
-	nts := network.NewNetworkService(con, nil)
+	nts := network.NewNetworkService(con, &serde.JsonRpc{})
 	nts.Logger = logger.With().Str("scope", "NETW ").Logger()
 	defer nts.Close()
 

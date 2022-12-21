@@ -2,6 +2,7 @@ package network
 
 import (
 	"errors"
+	"fmt"
 	"sync"
 
 	"github.com/rs/zerolog"
@@ -102,7 +103,9 @@ func (p *NetworkService) SendMessage(msg *netproto.Message) {
 		return
 	}
 
-	p.Connection.Send(msg.Method, data)
+	// FIXME: we can use one topic per app, but they have to be different
+	topic := fmt.Sprintf("nitro.%s", msg.Method)
+	p.Connection.Send(topic, data)
 
 	p.Logger.Trace().
 		Str("msg_type", netproto.TypeStr(msg.Type)).

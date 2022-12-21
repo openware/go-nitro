@@ -41,13 +41,11 @@ func (n *queue) dequeue() *node {
 type natsConnection struct {
 	nc *nats.Conn
 
-	subTopicName     string
+	subTopicName     string //TODO: convert to array of string, listen to those topics on start
 	subChannel       chan *nats.Msg
 	natsSubscription *nats.Subscription
 	queue            *queue
 }
-
-var _ Connection = (*natsConnection)(nil)
 
 func NewNatsConnection(connectionUrl string, subTopicName string, subChannel chan *nats.Msg) (*natsConnection, error) {
 	nc, err := nats.Connect(connectionUrl)
