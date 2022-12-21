@@ -7,15 +7,6 @@ import (
 	netproto "github.com/statechannels/go-nitro/network/protocol"
 )
 
-// JSON RPC request example:
-//
-// payload = {
-// 	"method": method,
-// 	"params": [args],
-// 	"jsonrpc": "2.0",
-// 	"id": 1,
-// }
-
 const JsonRpcVersion = "2.0"
 
 type JsonRpcRequest struct {

@@ -76,3 +76,18 @@ func TestJsonRpcDeserializeError(t *testing.T) {
 		Args:      []interface{}{float64(-32601), "Method not found"},
 	}, m)
 }
+
+func BenchmarkJsonRpcSerializeRequest(b *testing.B) {
+	rpc := JsonRpc{}
+	rpc.Serialize(&netproto.Message{
+		Type:      netproto.TypeRequest,
+		RequestId: 4242,
+		Method:    "test",
+		Args:      []interface{}{"foo"},
+	})
+}
+
+func BenchmarkJsonRpcDeserializeRequest(b *testing.B) {
+	rpc := JsonRpc{}
+	rpc.Deserialize([]byte(`{"method":"test","params":["foo"],"jsonrpc":"2.0","id":4242}`))
+}
