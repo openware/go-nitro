@@ -110,6 +110,7 @@ func (p *NetworkService) SendMessage(msg *netproto.Message) {
 		Msg("sent message")
 }
 
+// Maybe return func(*netproto.Message). if it doesn't exist it will just return nil
 func (p *NetworkService) getHandler(msg *netproto.Message) (any, bool) {
 	switch msg.Type {
 	case netproto.TypeRequest:
@@ -128,6 +129,7 @@ func (p *NetworkService) getHandler(msg *netproto.Message) (any, bool) {
 	return nil, false
 }
 
+// TODO: I feel like this should return error
 func (p *NetworkService) handleMessage(msg *netproto.Message) {
 	p.Logger.Trace().
 		Str("msg_type", netproto.TypeStr(msg.Type)).

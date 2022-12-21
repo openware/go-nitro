@@ -8,10 +8,10 @@ type NatsTransport struct {
 
 var _ Transport = (*NatsTransport)(nil)
 
-func NewNatsTransport(connectionUrl string, pubTopicName string, subTopicName string) (*NatsTransport, error) {
+func NewNatsTransport(connectionUrl string, pubTopicName string) (*NatsTransport, error) {
 	// wouldn't it be better to get messaged directly into the channel?
 	subChannel := make(chan *nats.Msg)
-	natsConnection, err := NewNatsConnection(connectionUrl, pubTopicName, subTopicName, subChannel)
+	natsConnection, err := NewNatsConnection(connectionUrl, pubTopicName, subChannel)
 	if err != nil {
 		return nil, err
 	}
