@@ -12,11 +12,12 @@ const (
 	TypeError                    = 5
 )
 
+//go:generate msgp
 type Message struct {
-	Type      MessageType
-	RequestId uint64
-	Method    string
-	Args      []interface{}
+	Type      MessageType   `msg:"type"`
+	RequestId uint64        `msg:"request_id"`
+	Method    string        `msg:"method"`
+	Args      []interface{} `msg:"args"`
 }
 
 func TypeStr(t MessageType) string {

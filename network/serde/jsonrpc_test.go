@@ -79,15 +79,21 @@ func TestJsonRpcDeserializeError(t *testing.T) {
 
 func BenchmarkJsonRpcSerializeRequest(b *testing.B) {
 	rpc := JsonRpc{}
-	rpc.Serialize(&netproto.Message{
+	m := &netproto.Message{
 		Type:      netproto.TypeRequest,
 		RequestId: 4242,
 		Method:    "test",
 		Args:      []interface{}{"foo"},
-	})
+	}
+	for i := 0; i < b.N; i++ {
+		rpc.Serialize(m)
+	}
 }
 
 func BenchmarkJsonRpcDeserializeRequest(b *testing.B) {
 	rpc := JsonRpc{}
-	rpc.Deserialize([]byte(`{"method":"test","params":["foo"],"jsonrpc":"2.0","id":4242}`))
+	data := []byte(`{"method":"test","params":["foo"],"jsonrpc":"2.0","id":4242}`)
+	for i := 0; i < b.N; i++ {
+		rpc.Deserialize(data)
+	}
 }

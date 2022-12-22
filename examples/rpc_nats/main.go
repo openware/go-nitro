@@ -93,7 +93,7 @@ func nitroService(logger zerolog.Logger) {
 	if err != nil {
 		logger.Fatal().Msg(err.Error())
 	}
-	ntsA := network.NewNetworkService(conA, &serde.JsonRpc{})
+	ntsA := network.NewNetworkService(conA, &serde.MsgPack{})
 	ntsA.Logger = logger.With().Str("scope", "NETW ").Logger()
 
 	ntsA.RegisterRequestHandler(rpcproto.DirectFundRequestMethod, func(m *netproto.Message) {
@@ -135,7 +135,7 @@ func nitroService(logger zerolog.Logger) {
 	})
 
 	// TODO: complete example with B and I clients interactions (wait their own objectives, etc.)
-	ntsA.RegisterResponseHandler()
+	// ntsA.RegisterResponseHandler()
 
 	// Wait forever
 	select {}
@@ -160,7 +160,7 @@ func marginService(logger zerolog.Logger) {
 		logger.Fatal().Msg(err.Error())
 	}
 
-	nts := network.NewNetworkService(con, &serde.JsonRpc{})
+	nts := network.NewNetworkService(con, &serde.MsgPack{})
 	nts.Logger = logger.With().Str("scope", "NETW ").Logger()
 	defer nts.Close()
 
