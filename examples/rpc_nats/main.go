@@ -1,6 +1,8 @@
 package main
 
 import (
+	"encoding/json"
+	"fmt"
 	"io"
 	"math/rand"
 	"os"
@@ -103,11 +105,14 @@ func nitroService(logger zerolog.Logger) {
 		}
 
 		for i := 0; i < len(m.Args); i++ {
-			res := m.Args[0].(directfund.ObjectiveRequest)
+			res := m.Args[i].(map[string]interface{})
+			out, _ := json.Marshal(res)
+			fmt.Printf("%s\n", string(out))
+			os.Exit(0)
 
 			// Should be fine?
 			logger.Info().Msgf("Objective Request: %v", res)
-			clientA.Engine.ObjectiveRequestsFromAPI <- res
+			// clientA.Engine.ObjectiveRequestsFromAPI <- res
 		}
 		r := m.Args[0].(map[string]interface{})
 		exit := outcome.Exit{}
@@ -181,7 +186,7 @@ func marginService(logger zerolog.Logger) {
 
 	// Send direct fund request
 	nts.SendMessage(
-		rpcproto.CreateDirectFundRequest(
+		rpcproto.CreateDirectFundRequestMessage(
 			&directfund.ObjectiveRequest{
 				CounterParty:      irene.Address(),
 				ChallengeDuration: 0,

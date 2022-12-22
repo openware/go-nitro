@@ -103,21 +103,17 @@ func TestGetHandler(t *testing.T) {
 	service.RegisterResponseHandler(regResHandler, func(message *netproto.Message) {})
 	service.RegisterErrorHandler(regErrHandler, func(message *netproto.Message) {})
 
-	val, ok := service.getHandler(msg1)
+	val := service.getHandler(msg1)
 	assert.NotNil(t, val)
-	assert.Equal(t, ok, true)
 
-	val, ok = service.getHandler(msg2)
+	val = service.getHandler(msg2)
 	assert.NotNil(t, val)
-	assert.Equal(t, ok, true)
 
-	val, ok = service.getHandler(msg3)
+	val = service.getHandler(msg3)
 	assert.NotNil(t, val)
-	assert.Equal(t, ok, true)
 
-	val, ok = service.getHandler(msg4)
+	val = service.getHandler(msg4)
 	assert.Nil(t, val)
-	assert.Equal(t, ok, false)
 }
 
 func TestHandleMessage(t *testing.T) {
