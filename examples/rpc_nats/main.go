@@ -1,16 +1,12 @@
 package main
 
 import (
-	"encoding/json"
-	"fmt"
 	"io"
 	"math/rand"
 	"os"
 	"time"
 
-	"github.com/ethereum/go-ethereum/common"
 	"github.com/rs/zerolog"
-	"github.com/statechannels/go-nitro/channel/state/outcome"
 	"github.com/statechannels/go-nitro/client"
 	"github.com/statechannels/go-nitro/client/engine"
 	"github.com/statechannels/go-nitro/client/engine/chainservice"
@@ -106,37 +102,11 @@ func nitroService(logger zerolog.Logger) {
 
 		for i := 0; i < len(m.Args); i++ {
 			res := m.Args[i].(map[string]interface{})
-			out, _ := json.Marshal(res)
-			fmt.Printf("%s\n", string(out))
-			os.Exit(0)
+			req := rpcproto.CreateObjectiveRequest(res)
 
-			// Should be fine?
-			logger.Info().Msgf("Objective Request: %v", res)
-			// clientA.Engine.ObjectiveRequestsFromAPI <- res
+			logger.Info().Msgf("Objective Request: %v", req)
+			clientA.Engine.ObjectiveRequestsFromAPI <- req
 		}
-		r := m.Args[0].(map[string]interface{})
-		exit := outcome.Exit{}
-
-		for _, o := range r["outcome"].([]interface{}) {
-			d := o.(map[string]interface{})
-			exit = append(exit, outcome.SingleAssetExit{
-				Asset: common.HexToAddress(d["asset"].(string)),
-				//FIXME: Metadata: d["metadata"].([]byte),
-				//FIXME: Allocations
-			})
-		}
-
-		or := directfund.ObjectiveRequest{
-			CounterParty:      common.HexToAddress(r["counter_party"].(string)),
-			ChallengeDuration: uint32(r["challenge_duration"].(float64)),
-			Outcome:           exit,
-			AppDefinition:     common.HexToAddress(r["app_definition"].(string)),
-			// FIXME: AppData:           r["app_data"].([]byte),
-			Nonce: uint64(r["nonce"].(float64)),
-		}
-
-		logger.Info().Msgf("Objective Request: %v", r)
-		clientA.Engine.ObjectiveRequestsFromAPI <- or
 	})
 
 	// TODO: complete example with B and I clients interactions (wait their own objectives, etc.)

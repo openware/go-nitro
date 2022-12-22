@@ -4,8 +4,10 @@ import (
 	"math/rand"
 
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/statechannels/go-nitro/channel/state/outcome"
 	netproto "github.com/statechannels/go-nitro/network/protocol"
 	"github.com/statechannels/go-nitro/protocols/directfund"
+	"github.com/statechannels/go-nitro/types"
 )
 
 const DirectFundRequestMethod = "direct_fund"
@@ -40,10 +42,10 @@ type DirectFundResponse struct {
 }
 
 func CreateDirectFundRequest(r *directfund.ObjectiveRequest) *DirectFundRequest {
-	o := []SingleAssetExit{}
+	var o []SingleAssetExit
 
 	for _, ae := range r.Outcome {
-		allocations := []Allocation{}
+		var allocations []Allocation
 		for _, a := range ae.Allocations {
 			allocations = append(allocations, Allocation{
 				Destination:    a.Destination.String(),
@@ -69,14 +71,61 @@ func CreateDirectFundRequest(r *directfund.ObjectiveRequest) *DirectFundRequest 
 	}
 }
 
+func createAllocations(allocationInterfaces []interface{}) []outcome.Allocation {
+	allocationsArray := make([]outcome.Allocation, len(allocationInterfaces))
+	for i := 0; i < len(allocationInterfaces); i++ {
+		alloc := allocationInterfaces[0].(map[string]interface{})
+		allocationsArray[i] = outcome.Allocation{
+			Destination:    types.AddressToDestination(common.HexToAddress(alloc["destination"].(string))),
+			Amount:         I2Uint256(alloc["amount"].(string)),
+			AllocationType: outcome.AllocationType(I2Uint8(alloc["allocation_type"])),
+			Metadata:       alloc["metadata"].([]byte),
+		}
+	}
+	return allocationsArray
+}
+
+func createExit(outcomesInterfaces []interface{}) outcome.Exit {
+	var e = outcome.Exit{}
+	for i := 0; i < len(outcomesInterfaces); i++ {
+		out := outcomesInterfaces[0].(map[string]interface{})
+		allocations := out["allocations"].([]interface{})
+		allocationsArray := createAllocations(allocations)
+
+		e = append(e, outcome.SingleAssetExit{
+			Asset:       common.HexToAddress(out["asset"].(string)),
+			Metadata:    out["metadata"].([]byte),
+			Allocations: allocationsArray,
+		})
+	}
+
+	//outcomesArray := make([]outcome.SingleAssetExit, len(outcomes))
+	//for i := 0; i < len(outcomes); i++ {
+	//	allocations := outcomes[i]["allocations"].([]map[string]interface{})
+	//	allocationsArray := createAllocations(allocations)
+	//
+	//	outcome := outcome.SingleAssetExit{
+	//		Asset:       common.HexToAddress(outcomes[i]["asset"].(string)),
+	//		Metadata:    outcomes[i]["metadata"].([]byte),
+	//		Allocations: allocationsArray,
+	//	}
+	//	e = append(e, outcome)
+	//}
+
+	return e
+}
+
 func CreateObjectiveRequest(m map[string]interface{}) *directfund.ObjectiveRequest {
+	outcomes := m["outcome"].([]interface{})
+	exit := createExit(outcomes)
+
 	r := directfund.ObjectiveRequest{
 		CounterParty:      common.HexToAddress(m["counter_party"].(string)),
 		ChallengeDuration: I2Uint32(m["challenge_duration"]),
-		// Outcome:           ,
-		AppDefinition: common.HexToAddress(m["app_definition"].(string)),
-		AppData:       m["app_data"].([]byte),
-		Nonce:         I2Uint64(m["nonce"]),
+		Outcome:           exit,
+		AppDefinition:     common.HexToAddress(m["app_definition"].(string)),
+		AppData:           m["app_data"].([]byte),
+		Nonce:             I2Uint64(m["nonce"]),
 	}
 
 	return &r

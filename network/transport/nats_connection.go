@@ -18,12 +18,7 @@ type natsConnection struct {
 }
 
 // TODO: discuss maybe we'd better give *nats.Conn
-func NewNatsConnection(connectionUrl string, subTopicNames []string) (*natsConnection, error) {
-	nc, err := nats.Connect(connectionUrl)
-	if err != nil {
-		return nil, err
-	}
-
+func NewNatsConnection(nc *nats.Conn, subTopicNames []string) *natsConnection {
 	natsConnection := &natsConnection{
 		nc:                nc,
 		subTopicNames:     subTopicNames,
@@ -33,7 +28,7 @@ func NewNatsConnection(connectionUrl string, subTopicNames []string) (*natsConne
 	}
 	natsConnection.subscribeToTopics()
 
-	return natsConnection, nil
+	return natsConnection
 }
 
 func (c *natsConnection) subscribeToTopics() {
