@@ -17,7 +17,6 @@ type natsConnection struct {
 	natsSubscriptions []*nats.Subscription
 }
 
-// TODO: discuss maybe we'd better give *nats.Conn
 func NewNatsConnection(nc *nats.Conn, subTopicNames []string) *natsConnection {
 	natsConnection := &natsConnection{
 		nc:                nc,
@@ -26,7 +25,7 @@ func NewNatsConnection(nc *nats.Conn, subTopicNames []string) *natsConnection {
 		natsSubscriptions: make([]*nats.Subscription, len(subTopicNames)),
 		mutex:             sync.Mutex{},
 	}
-	natsConnection.subscribeToTopics()
+	go natsConnection.subscribeToTopics()
 
 	return natsConnection
 }
@@ -59,6 +58,7 @@ func (c *natsConnection) Send(t string, data []byte) {
 	if err != nil {
 		log.Error().Err(err).Msgf("failed to send message on topic: %s. msg: %s", t, string(data))
 	}
+	log.Trace().Msgf("published message on %s.\ndata: %v", t, string(data))
 }
 
 func (c *natsConnection) Recv() ([]byte, error) {

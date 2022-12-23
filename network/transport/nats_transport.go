@@ -8,14 +8,14 @@ type NatsTransport struct {
 
 var _ Transport = (*NatsTransport)(nil)
 
-func NewNatsTransport(nc *nats.Conn, pubTopicNames []string) (*NatsTransport, error) {
+func NewNatsTransport(nc *nats.Conn, pubTopicNames []string) *NatsTransport {
 	// wouldn't it be better to get messaged directly into the channel?
 	connection := NewNatsConnection(nc, pubTopicNames)
 	natsTransport := &NatsTransport{
 		connection: connection,
 	}
 
-	return natsTransport, nil
+	return natsTransport
 }
 
 func (t *NatsTransport) PollConnection() (Connection, error) {

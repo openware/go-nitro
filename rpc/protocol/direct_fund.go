@@ -99,19 +99,6 @@ func createExit(outcomesInterfaces []interface{}) outcome.Exit {
 		})
 	}
 
-	//outcomesArray := make([]outcome.SingleAssetExit, len(outcomes))
-	//for i := 0; i < len(outcomes); i++ {
-	//	allocations := outcomes[i]["allocations"].([]map[string]interface{})
-	//	allocationsArray := createAllocations(allocations)
-	//
-	//	outcome := outcome.SingleAssetExit{
-	//		Asset:       common.HexToAddress(outcomes[i]["asset"].(string)),
-	//		Metadata:    outcomes[i]["metadata"].([]byte),
-	//		Allocations: allocationsArray,
-	//	}
-	//	e = append(e, outcome)
-	//}
-
 	return e
 }
 

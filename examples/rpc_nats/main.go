@@ -1,11 +1,13 @@
 package main
 
 import (
+	"fmt"
 	"io"
 	"math/rand"
 	"os"
 	"time"
 
+	"github.com/nats-io/nats.go"
 	"github.com/rs/zerolog"
 	"github.com/statechannels/go-nitro/client"
 	"github.com/statechannels/go-nitro/client/engine"
@@ -23,12 +25,24 @@ import (
 	"github.com/statechannels/go-nitro/types"
 )
 
-var alice = testactors.Alice
-var bob = testactors.Bob
-var irene = testactors.Irene
+var natsConnectionUrl = "localhost:4222"
+var nc *nats.Conn
+
+var (
+	alice = testactors.Alice
+	bob   = testactors.Bob
+	irene = testactors.Irene
+)
+
+func init() {
+	var err error
+	nc, err = transport.InitNats(natsConnectionUrl)
+	if err != nil {
+		panic("can't connect to nats.")
+	}
+}
 
 func setupClientWithP2PMessageService(pk []byte, port int, chain *chainservice.MockChainService, logDestination io.Writer) (client.Client, *p2pms.P2PMessageService) {
-
 	messageservice := p2pms.NewMessageService("127.0.0.1", port, pk)
 	storeA := store.NewMemStore(pk)
 	return client.New(messageservice, chain, storeA, logDestination, &engine.PermissivePolicy{}, nil), messageservice
@@ -38,8 +52,8 @@ var (
 	chain = chainservice.NewMockChain()
 
 	chainServiceA = chainservice.NewMockChainService(chain, alice.Address())
-	// TODO: replace with NATS transport
-	trpA = transport.NewChanTransport()
+
+	//trpA = transport.NewChanTransport()
 )
 
 // Go nitro micro service entry code example
@@ -87,6 +101,7 @@ func nitroService(logger zerolog.Logger) {
 	_ = clientI
 
 	// Setup A network service using transport from global variables (in global only because we currently use a mock transport)
+	trpA := transport.NewNatsTransport(nc, []string{fmt.Sprintf("nitro.%s", rpcproto.DirectFundRequestMethod), "nitro.test-topic"})
 	conA, err := trpA.PollConnection()
 	if err != nil {
 		logger.Fatal().Msg(err.Error())
@@ -110,7 +125,20 @@ func nitroService(logger zerolog.Logger) {
 	})
 
 	// TODO: complete example with B and I clients interactions (wait their own objectives, etc.)
-	// ntsA.RegisterResponseHandler()
+	ntsA.RegisterRequestHandler(rpcproto.DirectFundRequestMethod, func(m *netproto.Message) {
+		if len(m.Args) < 1 {
+			logger.Fatal().Msg("unexpected empty args for direct funding method")
+			return
+		}
+
+		for i := 0; i < len(m.Args); i++ {
+			res := m.Args[i].(map[string]interface{})
+			req := rpcproto.CreateObjectiveRequest(res)
+
+			logger.Info().Msgf("Objective Request: %v", req)
+			clientB.Engine.ObjectiveRequestsFromAPI <- req
+		}
+	})
 
 	// Wait forever
 	select {}
@@ -125,9 +153,9 @@ func marginService(logger zerolog.Logger) {
 		Logger()
 
 	// Setup transport
-	// TODO: replace with NATS transport
-	trp := transport.NewChanTransport()
-	trp.Connect(trpA, 100*time.Millisecond, 1000*time.Millisecond)
+	//trp := transport.NewChanTransport()
+	//trp.Connect(trpA, 100*time.Millisecond, 1000*time.Millisecond)
+	trp := transport.NewNatsTransport(nc, []string{fmt.Sprintf("nitro.%s", rpcproto.DirectFundRequestMethod), "nitro.test-topic"})
 
 	// Setup network service
 	con, err := trp.PollConnection()
@@ -137,7 +165,8 @@ func marginService(logger zerolog.Logger) {
 
 	nts := network.NewNetworkService(con, &serde.MsgPack{})
 	nts.Logger = logger.With().Str("scope", "NETW ").Logger()
-	defer nts.Close()
+	// TODO: if we close it's an error
+	//defer nts.Close()
 
 	// NOTE: instead of manually using network service, like bellow example, we could use the rpc service
 	// instead, that will add helper methods with the same behavior
@@ -167,6 +196,19 @@ func marginService(logger zerolog.Logger) {
 			},
 		),
 	)
+
+	nts.SendMessage(
+		rpcproto.CreateDirectFundRequestMessage(
+			&directfund.ObjectiveRequest{
+				CounterParty:      bob.Address(),
+				ChallengeDuration: 100,
+				Outcome:           testdata.Outcomes.Create(alice.Address(), bob.Address(), 100, 100, types.Address{}),
+				AppDefinition:     chainServiceA.GetConsensusAppAddress(),
+				// Appdata implicitly zero
+				Nonce: rand.Uint64(),
+			},
+		),
+	)
 }
 
 func main() {
@@ -189,7 +231,10 @@ func main() {
 	go nitroService(logger)
 
 	// Start margin micro service (simulated external micro service)
-	go marginService(logger)
+	go func() {
+		time.Sleep(time.Millisecond * 100)
+		marginService(logger)
+	}()
 
 	// Wait forever
 	select {}
