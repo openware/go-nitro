@@ -220,14 +220,6 @@ func marginService(logger zerolog.Logger) {
 			},
 		),
 	)
-
-	//nts.SendMessage(
-	//	rpcproto.CreateDirectDefundRequestMessage(
-	//		&directdefund.ObjectiveRequest{
-	//			ChannelId: types.Destination{
-	//				common.new
-	//			},
-	//		}))
 }
 
 func main() {
