@@ -10,6 +10,7 @@ import (
 	"github.com/statechannels/go-nitro/types"
 )
 
+// TODO: maybe 1 for request and 1 for response
 const DirectFundRequestMethod = "direct_fund"
 
 //go:generate msgp
@@ -102,7 +103,7 @@ func createExit(outcomesInterfaces []interface{}) outcome.Exit {
 	return e
 }
 
-func CreateObjectiveRequest(m map[string]interface{}) *directfund.ObjectiveRequest {
+func CreateDirectFundObjectiveRequest(m map[string]interface{}) *directfund.ObjectiveRequest {
 	outcomes := m["outcome"].([]interface{})
 	exit := createExit(outcomes)
 

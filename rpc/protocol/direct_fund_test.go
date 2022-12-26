@@ -37,7 +37,7 @@ func TestCreateObjectiveRequest(t *testing.T) {
 		},
 	}
 
-	r := CreateObjectiveRequest(m)
+	r := CreateDirectFundObjectiveRequest(m)
 
 	assert.Equal(t, &directfund.ObjectiveRequest{
 		CounterParty:      common.HexToAddress("0x111A00868581f73AB42FEEF67D235Ca09ca1E8db"),

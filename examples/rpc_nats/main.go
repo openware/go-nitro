@@ -7,6 +7,7 @@ import (
 	"os"
 	"time"
 
+	"github.com/nats-io/nats-server/v2/server"
 	"github.com/nats-io/nats.go"
 	"github.com/rs/zerolog"
 	"github.com/statechannels/go-nitro/client"
@@ -35,10 +36,20 @@ var (
 )
 
 func init() {
-	var err error
-	nc, err = transport.InitNats(natsConnectionUrl)
+	//nc, err = transport.InitNats(natsConnectionUrl)
+	//if err != nil {
+	//	panic("can't connect to nats.")
+	//}
+	opts := &server.Options{}
+	ns, err := server.NewServer(opts)
 	if err != nil {
-		panic("can't connect to nats.")
+		panic("failed to initialize nats mock server")
+	}
+
+	ns.Start()
+	nc, err = nats.Connect(ns.ClientURL())
+	if err != nil {
+		panic("failed to initialize nats mock server")
 	}
 }
 
@@ -117,7 +128,7 @@ func nitroService(logger zerolog.Logger) {
 
 		for i := 0; i < len(m.Args); i++ {
 			res := m.Args[i].(map[string]interface{})
-			req := rpcproto.CreateObjectiveRequest(res)
+			req := rpcproto.CreateDirectFundObjectiveRequest(res)
 
 			logger.Info().Msgf("Objective Request: %v", req)
 			clientA.Engine.ObjectiveRequestsFromAPI <- req
@@ -133,7 +144,7 @@ func nitroService(logger zerolog.Logger) {
 
 		for i := 0; i < len(m.Args); i++ {
 			res := m.Args[i].(map[string]interface{})
-			req := rpcproto.CreateObjectiveRequest(res)
+			req := rpcproto.CreateDirectFundObjectiveRequest(res)
 
 			logger.Info().Msgf("Objective Request: %v", req)
 			clientB.Engine.ObjectiveRequestsFromAPI <- req
@@ -209,6 +220,14 @@ func marginService(logger zerolog.Logger) {
 			},
 		),
 	)
+
+	//nts.SendMessage(
+	//	rpcproto.CreateDirectDefundRequestMessage(
+	//		&directdefund.ObjectiveRequest{
+	//			ChannelId: types.Destination{
+	//				common.new
+	//			},
+	//		}))
 }
 
 func main() {
