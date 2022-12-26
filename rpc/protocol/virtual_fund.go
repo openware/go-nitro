@@ -27,8 +27,41 @@ type VirtualFundResponse struct {
 	ChannelId string `msg:"channel_id"`
 }
 
-func CreateVirtualFundRequest(r *virtualfund.ObjectiveRequest) *VirtualFundRequest {
+func CreateVirtualFundRequest(req *virtualfund.ObjectiveRequest) *VirtualFundRequest {
+	intermediariesAddresses := make([]string, len(req.Intermediaries))
+	for i := 0; i < len(intermediariesAddresses); i++ {
+		intermediariesAddresses[i] = req.Intermediaries[i].String()
+	}
 
+	var outcome []SingleAssetExit
+
+	for _, ae := range req.Outcome {
+		var allocations []Allocation
+		for _, a := range ae.Allocations {
+			allocations = append(allocations, Allocation{
+				Destination:    a.Destination.String(),
+				Amount:         a.Amount.String(),
+				AllocationType: uint8(a.AllocationType),
+				Metadata:       a.Metadata,
+			})
+		}
+		outcome = append(outcome, SingleAssetExit{
+			Asset:       ae.Asset.String(),
+			Metadata:    ae.Metadata,
+			Allocations: allocations,
+		})
+	}
+
+	r := VirtualFundRequest{
+		Intermediaries:    intermediariesAddresses,
+		CounterParty:      req.CounterParty.String(),
+		ChallengeDuration: req.ChallengeDuration,
+		Outcome:           outcome,
+		Nonce:             req.Nonce,
+		AppDefinition:     req.AppDefinition.String(),
+	}
+
+	return &r
 }
 
 func CreateVirtualFundObjectiveRequest(m map[string]interface{}) *virtualfund.ObjectiveRequest {
