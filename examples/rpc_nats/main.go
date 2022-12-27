@@ -26,6 +26,7 @@ import (
 	"github.com/statechannels/go-nitro/types"
 )
 
+// If you want to test with nats container
 var natsConnectionUrl = "localhost:4222"
 var nc *nats.Conn
 

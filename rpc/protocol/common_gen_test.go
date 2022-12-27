@@ -9,8 +9,8 @@ import (
 	"github.com/tinylib/msgp/msgp"
 )
 
-func TestMarshalUnmarshalDirectFundRequest(t *testing.T) {
-	v := DirectFundRequest{}
+func TestMarshalUnmarshalAllocation(t *testing.T) {
+	v := Allocation{}
 	bts, err := v.MarshalMsg(nil)
 	if err != nil {
 		t.Fatal(err)
@@ -32,8 +32,8 @@ func TestMarshalUnmarshalDirectFundRequest(t *testing.T) {
 	}
 }
 
-func BenchmarkMarshalMsgDirectFundRequest(b *testing.B) {
-	v := DirectFundRequest{}
+func BenchmarkMarshalMsgAllocation(b *testing.B) {
+	v := Allocation{}
 	b.ReportAllocs()
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
@@ -41,8 +41,8 @@ func BenchmarkMarshalMsgDirectFundRequest(b *testing.B) {
 	}
 }
 
-func BenchmarkAppendMsgDirectFundRequest(b *testing.B) {
-	v := DirectFundRequest{}
+func BenchmarkAppendMsgAllocation(b *testing.B) {
+	v := Allocation{}
 	bts := make([]byte, 0, v.Msgsize())
 	bts, _ = v.MarshalMsg(bts[0:0])
 	b.SetBytes(int64(len(bts)))
@@ -53,8 +53,8 @@ func BenchmarkAppendMsgDirectFundRequest(b *testing.B) {
 	}
 }
 
-func BenchmarkUnmarshalDirectFundRequest(b *testing.B) {
-	v := DirectFundRequest{}
+func BenchmarkUnmarshalAllocation(b *testing.B) {
+	v := Allocation{}
 	bts, _ := v.MarshalMsg(nil)
 	b.ReportAllocs()
 	b.SetBytes(int64(len(bts)))
@@ -67,17 +67,17 @@ func BenchmarkUnmarshalDirectFundRequest(b *testing.B) {
 	}
 }
 
-func TestEncodeDecodeDirectFundRequest(t *testing.T) {
-	v := DirectFundRequest{}
+func TestEncodeDecodeAllocation(t *testing.T) {
+	v := Allocation{}
 	var buf bytes.Buffer
 	msgp.Encode(&buf, &v)
 
 	m := v.Msgsize()
 	if buf.Len() > m {
-		t.Log("WARNING: TestEncodeDecodeDirectFundRequest Msgsize() is inaccurate")
+		t.Log("WARNING: TestEncodeDecodeAllocation Msgsize() is inaccurate")
 	}
 
-	vn := DirectFundRequest{}
+	vn := Allocation{}
 	err := msgp.Decode(&buf, &vn)
 	if err != nil {
 		t.Error(err)
@@ -91,8 +91,8 @@ func TestEncodeDecodeDirectFundRequest(t *testing.T) {
 	}
 }
 
-func BenchmarkEncodeDirectFundRequest(b *testing.B) {
-	v := DirectFundRequest{}
+func BenchmarkEncodeAllocation(b *testing.B) {
+	v := Allocation{}
 	var buf bytes.Buffer
 	msgp.Encode(&buf, &v)
 	b.SetBytes(int64(buf.Len()))
@@ -105,8 +105,8 @@ func BenchmarkEncodeDirectFundRequest(b *testing.B) {
 	en.Flush()
 }
 
-func BenchmarkDecodeDirectFundRequest(b *testing.B) {
-	v := DirectFundRequest{}
+func BenchmarkDecodeAllocation(b *testing.B) {
+	v := Allocation{}
 	var buf bytes.Buffer
 	msgp.Encode(&buf, &v)
 	b.SetBytes(int64(buf.Len()))
@@ -122,8 +122,8 @@ func BenchmarkDecodeDirectFundRequest(b *testing.B) {
 	}
 }
 
-func TestMarshalUnmarshalDirectFundResponse(t *testing.T) {
-	v := DirectFundResponse{}
+func TestMarshalUnmarshalSingleAssetExit(t *testing.T) {
+	v := SingleAssetExit{}
 	bts, err := v.MarshalMsg(nil)
 	if err != nil {
 		t.Fatal(err)
@@ -145,8 +145,8 @@ func TestMarshalUnmarshalDirectFundResponse(t *testing.T) {
 	}
 }
 
-func BenchmarkMarshalMsgDirectFundResponse(b *testing.B) {
-	v := DirectFundResponse{}
+func BenchmarkMarshalMsgSingleAssetExit(b *testing.B) {
+	v := SingleAssetExit{}
 	b.ReportAllocs()
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
@@ -154,8 +154,8 @@ func BenchmarkMarshalMsgDirectFundResponse(b *testing.B) {
 	}
 }
 
-func BenchmarkAppendMsgDirectFundResponse(b *testing.B) {
-	v := DirectFundResponse{}
+func BenchmarkAppendMsgSingleAssetExit(b *testing.B) {
+	v := SingleAssetExit{}
 	bts := make([]byte, 0, v.Msgsize())
 	bts, _ = v.MarshalMsg(bts[0:0])
 	b.SetBytes(int64(len(bts)))
@@ -166,8 +166,8 @@ func BenchmarkAppendMsgDirectFundResponse(b *testing.B) {
 	}
 }
 
-func BenchmarkUnmarshalDirectFundResponse(b *testing.B) {
-	v := DirectFundResponse{}
+func BenchmarkUnmarshalSingleAssetExit(b *testing.B) {
+	v := SingleAssetExit{}
 	bts, _ := v.MarshalMsg(nil)
 	b.ReportAllocs()
 	b.SetBytes(int64(len(bts)))
@@ -180,17 +180,17 @@ func BenchmarkUnmarshalDirectFundResponse(b *testing.B) {
 	}
 }
 
-func TestEncodeDecodeDirectFundResponse(t *testing.T) {
-	v := DirectFundResponse{}
+func TestEncodeDecodeSingleAssetExit(t *testing.T) {
+	v := SingleAssetExit{}
 	var buf bytes.Buffer
 	msgp.Encode(&buf, &v)
 
 	m := v.Msgsize()
 	if buf.Len() > m {
-		t.Log("WARNING: TestEncodeDecodeDirectFundResponse Msgsize() is inaccurate")
+		t.Log("WARNING: TestEncodeDecodeSingleAssetExit Msgsize() is inaccurate")
 	}
 
-	vn := DirectFundResponse{}
+	vn := SingleAssetExit{}
 	err := msgp.Decode(&buf, &vn)
 	if err != nil {
 		t.Error(err)
@@ -204,8 +204,8 @@ func TestEncodeDecodeDirectFundResponse(t *testing.T) {
 	}
 }
 
-func BenchmarkEncodeDirectFundResponse(b *testing.B) {
-	v := DirectFundResponse{}
+func BenchmarkEncodeSingleAssetExit(b *testing.B) {
+	v := SingleAssetExit{}
 	var buf bytes.Buffer
 	msgp.Encode(&buf, &v)
 	b.SetBytes(int64(buf.Len()))
@@ -218,8 +218,8 @@ func BenchmarkEncodeDirectFundResponse(b *testing.B) {
 	en.Flush()
 }
 
-func BenchmarkDecodeDirectFundResponse(b *testing.B) {
-	v := DirectFundResponse{}
+func BenchmarkDecodeSingleAssetExit(b *testing.B) {
+	v := SingleAssetExit{}
 	var buf bytes.Buffer
 	msgp.Encode(&buf, &v)
 	b.SetBytes(int64(buf.Len()))
