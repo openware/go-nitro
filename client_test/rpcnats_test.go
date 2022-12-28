@@ -12,6 +12,7 @@ import (
 	"github.com/nats-io/nats-server/v2/server"
 	"github.com/nats-io/nats.go"
 	"github.com/rs/zerolog"
+	"github.com/statechannels/go-nitro/channel/state"
 	"github.com/statechannels/go-nitro/client"
 	"github.com/statechannels/go-nitro/client/engine"
 	"github.com/statechannels/go-nitro/client/engine/chainservice"
@@ -68,11 +69,6 @@ func TestRunRpcNats(t *testing.T) {
 
 	chainServiceA := chainservice.NewMockChainService(chain, alice.Address())
 	chainServiceB := chainservice.NewMockChainService(chain, bob.Address())
-	// TODO: if we setup chain service how do we connect everything to engine
-	//sim, bindings, ethAccounts, err := chainservice.SetupSimulatedBackend(3)
-	//if err != nil {
-	//	t.Fatal(err)
-	//}
 
 	trp := transport.NewNatsTransport(nc, []string{fmt.Sprintf("nitro.%s", rpcproto.DirectFundRequestMethod), "nitro.test-topic"})
 
@@ -115,6 +111,24 @@ func TestRunRpcNats(t *testing.T) {
 	}
 	ntsA := network.NewNetworkService(conA, &serde.MsgPack{})
 
+	objReq := &directfund.ObjectiveRequest{
+		CounterParty:      alice.Address(),
+		ChallengeDuration: 100,
+		Outcome:           testdata.Outcomes.Create(alice.Address(), bob.Address(), 100, 100, types.Address{}),
+		AppDefinition:     chainServiceA.GetConsensusAppAddress(),
+		// Appdata implicitly zero
+		Nonce: rand.Uint64(),
+	}
+
+	fixedPart := state.FixedPart{
+		ChainId:           state.TestState.ChainId,
+		Participants:      []types.Address{alice.Address(), bob.Address()},
+		ChannelNonce:      objReq.Nonce,
+		AppDefinition:     objReq.AppDefinition,
+		ChallengeDuration: objReq.ChallengeDuration,
+	}
+	channelId := fixedPart.ChannelId()
+
 	ntsA.RegisterRequestHandler(rpcproto.DirectFundRequestMethod, func(m *netproto.Message) {
 		defer wg.Done()
 		if len(m.Args) < 1 {
@@ -130,10 +144,10 @@ func TestRunRpcNats(t *testing.T) {
 			assert.Equal(t, req.AppDefinition, chainServiceA.GetConsensusAppAddress())
 
 			nts.SendMessage(rpcproto.CreateDirectFundResponse(m.RequestId, &directfund.ObjectiveResponse{
-				Id:        protocols.ObjectiveId("test"),
-				ChannelId: types.Destination{},
+				Id:        protocols.ObjectiveId("test"), // user address and nonce
+				ChannelId: channelId,
 			}))
-			clientA.Engine.ObjectiveRequestsFromAPI <- req
+			clientA.Engine.ObjectiveRequestsFromAPI <- *req
 		}
 	})
 
@@ -148,24 +162,15 @@ func TestRunRpcNats(t *testing.T) {
 			res := m.Args[i].(map[string]interface{})
 			req := rpcproto.CreateDirectDefundObjectiveRequest(res)
 
-			clientB.Engine.ObjectiveRequestsFromAPI <- req
+			clientB.Engine.ObjectiveRequestsFromAPI <- *req
 		}
 	})
 
 	nts.SendMessage(
-		rpcproto.CreateDirectFundRequestMessage(
-			&directfund.ObjectiveRequest{
-				CounterParty:      alice.Address(),
-				ChallengeDuration: 100,
-				Outcome:           testdata.Outcomes.Create(alice.Address(), bob.Address(), 100, 100, types.Address{}),
-				AppDefinition:     chainServiceA.GetConsensusAppAddress(),
-				// Appdata implicitly zero
-				Nonce: rand.Uint64(),
-			},
-		),
+		rpcproto.CreateDirectFundRequestMessage(objReq),
 	)
-	// TODO: where do we create channel ids?
-	nts.SendMessage(rpcproto.CreateDirectDefundRequestMessage(&directdefund.ObjectiveRequest{ChannelId: types.Destination{}}))
+
+	nts.SendMessage(rpcproto.CreateDirectDefundRequestMessage(&directdefund.ObjectiveRequest{ChannelId: channelId}))
 	wg.Add(2)
 
 	wg.Wait()
