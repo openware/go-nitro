@@ -1,6 +1,7 @@
 package client
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"math/rand"
@@ -16,6 +17,7 @@ import (
 	"github.com/statechannels/go-nitro/client"
 	"github.com/statechannels/go-nitro/client/engine"
 	"github.com/statechannels/go-nitro/client/engine/chainservice"
+	"github.com/statechannels/go-nitro/client/engine/messageservice"
 	p2pms "github.com/statechannels/go-nitro/client/engine/messageservice/p2p-message-service"
 	"github.com/statechannels/go-nitro/client/engine/store"
 	"github.com/statechannels/go-nitro/internal/testactors"
@@ -174,4 +176,101 @@ func TestRunRpcNats(t *testing.T) {
 	wg.Add(2)
 
 	wg.Wait()
+}
+
+func initNats() *nats.Conn {
+	opts := &server.Options{}
+	ns, _ := server.NewServer(opts)
+
+	nc, _ := nats.Connect(ns.ClientURL())
+
+	return nc
+}
+
+func TestFundDefundFlow(t *testing.T) {
+	nc := initNats()
+	broker := messageservice.NewBroker()
+
+	// TODO: maybe instead of eth accounts use
+	sim, bindings, ethAccounts, err := chainservice.SetupSimulatedBackend(2)
+	chainId, _ := sim.ChainID(context.Background())
+
+	msgServiceA := messageservice.NewTestMessageService(ethAccounts[0].From, broker, time.Second*3)
+	storeA := store.NewMemStore(ethAccounts[0].)
+	msgServiceB := messageservice.NewTestMessageService(ethAccounts[1].From, broker, time.Second*3)
+
+	clientA := client.New(msgServiceA, sim, )
+	clientB := client.New()
+	if err != nil {
+		panic("failed to setup simulated backend")
+	}
+	trp := transport.NewNatsTransport(nc, []string{
+		fmt.Sprintf("nitro.%s", rpcproto.DirectFundRequestMethod),
+		fmt.Sprintf("nitro.%s", rpcproto.DirectDefundRequestMethod),
+	})
+	natsConn, err := trp.PollConnection()
+	assert.NoError(t, err, "we should be able to poll connection")
+
+	// initialize our network service with nats connection
+	networkService := network.NewNetworkService(natsConn, &serde.MsgPack{})
+	defer networkService.Close()
+
+	// define messages
+	objReq := &directfund.ObjectiveRequest{
+		CounterParty:      ethAccounts[0].From,
+		ChallengeDuration: 100,
+		Outcome:           testdata.Outcomes.Create(ethAccounts[0].From, ethAccounts[1].From, 100, 200, types.Address{}),
+		// Not too sure if this is right
+		AppDefinition: bindings.ConsensusApp.Address,
+		// Appdata implicitly zero
+		Nonce: rand.Uint64(),
+	}
+	channelId := getChannelIdFromFundObjectiveRequest(objReq, []types.Address{ethAccounts[0].From, ethAccounts[1].From})
+
+
+	networkService.RegisterRequestHandler(rpcproto.DirectDefundRequestMethod, func(m *netproto.Message) {
+		if len(m.Args) < 1 {
+			return
+		}
+
+		for i := 0; i < len(m.Args); i++ {
+			res := m.Args[i].(map[string]interface{})
+			req := rpcproto.CreateDirectFundObjectiveRequest(res)
+
+			assert.Equal(t, req.CounterParty, ethAccounts[0])
+			assert.Equal(t, req.AppDefinition, bindings.ConsensusApp.Address)
+
+			clientA.Engine.ObjectiveRequestsFromAPI <- *req
+			clientB.Engine.ObjectiveRequestsFromAPI <- *req
+
+			clientA.Engine.ToApi()
+
+			networkService.SendMessage(rpcproto.CreateDirectFundResponse(m.RequestId, &directfund.ObjectiveResponse{
+				Id:        protocols.ObjectiveId(req.CounterParty.String() + string(req.Nonce)),
+				ChannelId: channelId,
+			}))
+		}
+	})
+
+	networkService.RegisterResponseHandler(rpcproto.DirectFundRequestMethod, func(m *netproto.Message) {
+
+	})
+
+	networkService.RegisterRequestHandler(rpcproto.DirectDefundRequestMethod, func(m *netproto.Message) {
+		if len(m.Args) < 1 {
+			return
+		}
+	})
+}
+
+func getChannelIdFromFundObjectiveRequest(req *directfund.ObjectiveRequest, participants []types.Address) types.Destination {
+	fixedPart := state.FixedPart{
+		ChainId:           state.TestState.ChainId,
+		Participants:      participants,
+		ChannelNonce:      req.Nonce,
+		AppDefinition:     req.AppDefinition,
+		ChallengeDuration: req.ChallengeDuration,
+	}
+
+	return fixedPart.ChannelId()
 }
