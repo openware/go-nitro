@@ -216,7 +216,7 @@ func TestFundDefundFlow(t *testing.T) {
 	defer networkService.Close()
 
 	// define messages
-	objReq := &directfund.ObjectiveRequest{
+	objReq := &directfund.ObjectiveRequest{channe
 		CounterParty:      ethAccounts[0].From,
 		ChallengeDuration: 100,
 		Outcome:           testdata.Outcomes.Create(ethAccounts[0].From, ethAccounts[1].From, 100, 200, types.Address{}),
