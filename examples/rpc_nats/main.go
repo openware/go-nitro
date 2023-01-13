@@ -231,7 +231,7 @@ func marginService(logger zerolog.Logger) {
 	//	// Appdata implicitly zero
 	//	Nonce: rand.Uint64(),
 	//}
-	//nts.SendMessage(directFundObjRequest2.ToRequestMessage())
+	//nts.SendMessage(netproto.NewMessage(netproto.TypeRequest, rand.Uint64(), network.DirectFundRequestMethod, []any{directFundObjRequest2}))
 }
 
 func main() {

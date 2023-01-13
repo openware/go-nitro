@@ -69,7 +69,7 @@ func TestRunRpcNats(t *testing.T) {
 	chainServiceA := chainservice.NewMockChainService(chain, alice.Address())
 	chainServiceB := chainservice.NewMockChainService(chain, bob.Address())
 
-	trp := nats2.NewNatsTransport(nc, []string{fmt.Sprintf("nitro.%s", directfund.DirectFundRequestMethod), "nitro.test-topic"})
+	trp := nats2.NewNatsTransport(nc, []string{fmt.Sprintf("nitro.%s", network.DirectFundRequestMethod), "nitro.test-topic"})
 
 	clientA, msgA := setupClientWithP2PMessageService(alice.PrivateKey, 3005, chainServiceA, logger)
 	clientB, msgB := setupClientWithP2PMessageService(bob.PrivateKey, 3006, chainServiceB, logger)
@@ -79,12 +79,12 @@ func TestRunRpcNats(t *testing.T) {
 		assert.NoError(t, err)
 	}
 
-	nts := network.NewNetworkService(con, &serde.MsgPack{})
-	nts.RegisterResponseHandler(directfund.DirectFundRequestMethod, func(m *netproto.Message) {
+	nts := network.NewNetworkService(con, &serde.JsonRpc{})
+	nts.RegisterResponseHandler(network.DirectFundRequestMethod, func(m *netproto.Message) {
 		logger.Info().Msgf("Objective updated: %v", *m)
 	})
 
-	nts.RegisterErrorHandler(directfund.DirectFundRequestMethod, func(m *netproto.Message) {
+	nts.RegisterErrorHandler(network.DirectFundRequestMethod, func(m *netproto.Message) {
 		logger.Error().Msgf("Objective failed: %v", *m)
 	})
 
@@ -101,8 +101,8 @@ func TestRunRpcNats(t *testing.T) {
 	defer msgB.Close()
 
 	trpA := nats2.NewNatsTransport(nc, []string{
-		fmt.Sprintf("nitro.%s", directfund.DirectFundRequestMethod),
-		fmt.Sprintf("nitro.%s", directdefund.DirectDefundRequestMethod),
+		fmt.Sprintf("nitro.%s", network.DirectFundRequestMethod),
+		fmt.Sprintf("nitro.%s", network.DirectDefundRequestMethod),
 	})
 	conA, err := trpA.PollConnection()
 	if err != nil {
@@ -118,14 +118,6 @@ func TestRunRpcNats(t *testing.T) {
 		// Appdata implicitly zero
 		Nonce: rand.Uint64(),
 	}
-	//c := state.TestState.ChainId
-	//fixedPart := state.FixedPart{
-	//	ChainId:           state.TestState.ChainId,
-	//	Participants:      []types.Address{alice.Address(), bob.Address()},
-	//	ChannelNonce:      objReq.Nonce,
-	//	AppDefinition:     objReq.AppDefinition,
-	//	ChallengeDuration: objReq.ChallengeDuration,
-	//}
 
 	ntsA.RegisterRequestHandler(network.DirectFundRequestMethod, func(m *netproto.Message) {
 		defer wg.Done()
@@ -140,14 +132,10 @@ func TestRunRpcNats(t *testing.T) {
 
 			assert.Equal(t, req.CounterParty, alice.Address())
 			assert.Equal(t, req.AppDefinition, chainServiceA.GetConsensusAppAddress())
-			//objRes := &directfund.ObjectiveResponse{
-			//	Id:        req.Id(alice.Address(), state.TestState.ChainId), // , state.TestState.ChainId // protocols.ObjectiveId("test"), // user address and nonce
-			//	ChannelId: channelId,
-			//}
 
 			objRes := req.Response(alice.Address(), state.TestState.ChainId)
 
-			nts.SendMessage()
+			nts.SendMessage(netproto.NewMessage(netproto.TypeResponse, m.RequestId, network.DirectFundRequestMethod, []any{&objRes}))
 			clientA.Engine.ObjectiveRequestsFromAPI <- req
 		}
 	})
@@ -160,21 +148,26 @@ func TestRunRpcNats(t *testing.T) {
 		}
 
 		for i := 0; i < len(m.Args); i++ {
-			res := m.Args[i].(map[string]interface{})
-			req := directdefund.NewDirectDefundObjectiveRequest(res)
-
-			clientB.Engine.ObjectiveRequestsFromAPI <- *req
+			res := m.Args[i].(map[string]any)
+			req := parser.ParseDirectDefundRequest(res)
+			clientB.Engine.ObjectiveRequestsFromAPI <- req
 		}
 	})
 
-	nts.SendMessage(objReq.ToRequestMessage())
-
-	//go func() {
-	//	time.Sleep(100)
-	//	req := directdefund.ObjectiveRequest{ChannelId: channelId}
-	//	nts.SendMessage(req.ToRequestMessage())
-	//}()
-	wg.Add(1)
+	nts.SendMessage(netproto.NewMessage(netproto.TypeRequest, rand.Uint64(), network.DirectFundRequestMethod, []any{&objReq}))
+	go func() {
+		time.Sleep(100)
+		fixedPart := state.FixedPart{
+			ChainId:           state.TestState.ChainId,
+			Participants:      []types.Address{alice.Address(), bob.Address()},
+			ChannelNonce:      objReq.Nonce,
+			AppDefinition:     objReq.AppDefinition,
+			ChallengeDuration: objReq.ChallengeDuration,
+		}
+		req := directdefund.ObjectiveRequest{ChannelId: fixedPart.ChannelId()}
+		nts.SendMessage(netproto.NewMessage(netproto.TypeRequest, rand.Uint64(), network.DirectDefundRequestMethod, []any{&req}))
+	}()
+	wg.Add(2)
 
 	wg.Wait()
 }
