@@ -52,4 +52,10 @@ func TestI2Uint256(t *testing.T) {
 	assert.Panics(t, func() {
 		i2Uint256(int32(42))
 	})
+	assert.Equal(t, big.NewInt(42), i2Uint64(float64(42)))
+}
+
+func TestToByteArray(t *testing.T) {
+	assert.Equal(t, []byte(nil), toByteArray(nil))
+	assert.Equal(t, []byte("test"), toByteArray([]byte("test")))
 }

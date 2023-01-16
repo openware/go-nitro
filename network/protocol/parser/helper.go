@@ -58,7 +58,7 @@ func i2Uint256(v any) *types.Uint256 {
 	case float64:
 		bigInt, ok := math.ParseBig256(fmt.Sprintf("%v", v.(float64)))
 		if !ok {
-			panic(fmt.Sprintf("parsing to bigint failed. val: %s", v.(float64)))
+			panic(fmt.Sprintf("parsing to bigint failed. val: %v", v.(float64)))
 		}
 		return bigInt
 	}
