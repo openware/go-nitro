@@ -111,10 +111,10 @@ func (a Allocations) Affords(given Allocation, funding *big.Int) bool {
 
 // rawAllocationsType is an alias to the type returned when using the github.com/ethereum/go-ethereum/accounts/abi Unpack method with allocationsTy
 type rawAllocationsType = []struct {
-	Destination    [32]byte `json:"destination"`
-	Amount         *big.Int `json:"amount"`
-	AllocationType uint8    `json:"allocationType"`
-	Metadata       []uint8  `json:"metadata"`
+	Destination    [32]byte
+	Amount         *big.Int
+	AllocationType uint8
+	Metadata       []uint8
 }
 
 // allocationsTy describes the shape of Allocations such that github.com/ethereum/go-ethereum/accounts/abi can parse it
